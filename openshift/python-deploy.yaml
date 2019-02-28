@@ -34,10 +34,14 @@ objects:
       deploymentconfig: ${NAME}${SUFFIX}
     strategy:
       activeDeadlineSeconds: 21600
-      recreateParams:
-        timeoutSeconds: 180
       resources: {}
-      type: Recreate
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 180
+        updatePeriodSeconds: 1
+      type: Rolling
     template:
       metadata:
         annotations:
