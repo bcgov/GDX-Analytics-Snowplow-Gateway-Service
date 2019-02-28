@@ -5,8 +5,8 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'text/plain')
         self.end_headers()
-        self.wfile.write("Hello, world, I am changing!\n")
+        self.wfile.write(bytes("Hello, world, I am changing!\n", "utf-8"))
         return
 
-httpd = HTTPServer(('', 8000), RequestHandler)
+httpd = HTTPServer(('0.0.0.0', 8080), RequestHandler)
 httpd.serve_forever()
