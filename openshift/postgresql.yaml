@@ -209,7 +209,7 @@ objects:
                 - /usr/share/scripts/patroni/health_check.sh
           volumeMounts:
           - mountPath: /home/postgres/pgdata
-            name: ${NAME}${SUFFIX}
+            name: postgresql
         dnsPolicy: ClusterFirst
         restartPolicy: Always
         schedulerName: default-scheduler
@@ -217,7 +217,7 @@ objects:
         serviceAccountName: ${NAME}${SUFFIX}
         terminationGracePeriodSeconds: 0
         volumes:
-        - name: ${NAME}${SUFFIX}
+        - name: postgresql
 #          emptyDir: {}
           persistentVolumeClaim:
             claimName: postgresql
