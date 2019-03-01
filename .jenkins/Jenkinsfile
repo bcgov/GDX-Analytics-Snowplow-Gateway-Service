@@ -8,7 +8,7 @@ pipeline {
             agent { label 'build' }
             steps {
                 script {
-                    def filesInThisCommitAsString = sh(script:"git diff --name-only HEAD~1..HEAD | grep -v '^.jenkins/' || echo -n ''", returnStatus: false, returnStdout: true).trim()
+                    def filesInThisCommitAsString = sh(script:"git diff --name-only HEAD~1..HEAD | grep '^.jenkins/' || echo -n ''", returnStatus: false, returnStdout: true).trim()
                     def hasChangesInPath = (filesInThisCommitAsString.length() > 0)
                     echo "${filesInThisCommitAsString}"
                     if (!currentBuild.rawBuild.getCauses()[0].toString().contains('UserIdCause') && !hasChangesInPath){
@@ -20,26 +20,39 @@ pipeline {
                 script {
                     abortAllPreviousBuildInProgress(currentBuild)
                 }
+                echo "BRANCH_NAME:${env.BRANCH_NAME}\nCHANGE_ID:${env.CHANGE_ID}\nCHANGE_TARGET:${env.CHANGE_TARGET}"
                 echo "Building ..."
-                sh ".pipeline/npmw build -- --pr=${CHANGE_ID}"
+                sh ".jenkins/.pipeline/npmw build -- --pr=${CHANGE_ID}"
             }
         }
         stage('Deploy (DEV)') {
             agent { label 'deploy' }
             steps {
                 echo "Deploying ..."
-                sh ".pipeline/npmw deploy -- --pr=${CHANGE_ID} --env=dev"
+                sh ".jenkins/.pipeline/npmw deploy -- --pr=${CHANGE_ID} --env=dev"
             }
         }
-        stage('Deploy (TEST)') {
+        stage('Deploy (PROD)') {
             agent { label 'deploy' }
             input {
-                message "Should we continue with deployment to TEST?"
+                message "Should we continue with deployment to PROD?"
                 ok "Yes!"
             }
             steps {
                 echo "Deploying ..."
-                sh ".pipeline/npmw deploy -- --pr=${CHANGE_ID} --env=test"
+                sh ".jenkins/.pipeline/npmw deploy -- --pr=${CHANGE_ID} --env=prod"
+            }
+        }
+        stage('Acceptance') {
+            agent { label 'deploy' }
+            input {
+                message "Should we continue with cleanup?"
+                ok "Yes!"
+            }
+            steps {
+                echo "Cleaning ..."
+                sh ".jenkins/pipeline-cli clean --pr=${CHANGE_ID} --env=build"
+                sh ".jenkins/pipeline-cli clean --pr=${CHANGE_ID} --env=dev"
             }
         }
     }
