@@ -29,7 +29,7 @@ pipeline {
             agent { label 'deploy' }
             steps {
                 echo "Deploying ..."
-                sh "cd .jenkins/.pipeline && ./npmw deploy -- --pr=${CHANGE_ID} --env=dev"
+                sh "cd .jenkins/.pipeline && DEBUG=info* ./npmw deploy -- --pr=${CHANGE_ID} --env=dev"
             }
         }
         stage('Deploy (PROD)') {
