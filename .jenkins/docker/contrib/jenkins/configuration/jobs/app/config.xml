@@ -29,10 +29,10 @@
     <data>
       <jenkins.branch.BranchSource>
         <source class="org.jenkinsci.plugins.github_branch_source.GitHubSCMSource" plugin="github-branch-source@2.3.6">
-          <id>70e8c310-87dd-4d17-b031-c7ca3d2a713a</id>
+          <id>61849a4c-f26b-45a6-b38d-932571424b1b</id>
           <credentialsId>github-account</credentialsId>
-          <repoOwner>cvarjao-o</repoOwner>
-          <repository>hello-world</repository>
+          <repoOwner>bcgov</repoOwner>
+          <repository>GDX-Analytics-OpenShift-Snowplow-Gateway-Service</repository>
           <traits>
             <org.jenkinsci.plugins.github__branch__source.OriginPullRequestDiscoveryTrait>
               <strategyId>2</strategyId>
