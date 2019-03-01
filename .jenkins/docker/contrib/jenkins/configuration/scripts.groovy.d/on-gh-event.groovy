@@ -56,8 +56,8 @@ static Map exec(List args, File workingDirectory=null, Appendable stdout=null, A
                     boolean isFromCollaborator=ghRepo.root.retrieve().asHttpStatusCode(ghRepo.getApiTailUrl("collaborators/${payload.pull_request.user.login}")) == 204
                     String cloneUrl = payload.repository.clone_url
                     String sourceBranch = isFromCollaborator?"refs/pull/${payload.number}/head":"refs/heads/${payload.pull_request.base.ref}"
-                    String repoName = payload.repository.name.toLowerCase()
-                    String repoOwner = payload.repository.owner.login.toLowerCase()
+                    String repoName = payload.repository.name
+                    String repoOwner = payload.repository.owner.login
 
                     println "Is Collaborator:${isFromCollaborator} (${payload.pull_request.user.login})"
                     println "Clone Url:${cloneUrl}"
