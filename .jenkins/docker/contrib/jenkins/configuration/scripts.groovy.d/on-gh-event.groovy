@@ -63,7 +63,7 @@ static Map exec(List args, File workingDirectory=null, Appendable stdout=null, A
                     println "Clone Url:${cloneUrl}"
                     println "Checkout Branch:${sourceBranch}"
 
-                    String selector = "env-id=pr-${payload.number},env-name!=prod,github-owner=${repoOwner},github-repo=${repoName},!shared"
+                    String selector = "env-id=${payload.number},env-name!=prod,github-owner=${repoOwner},github-repo=${repoName},!shared"
 
                     def ocGetProjects = exec(['oc','get','projects','-l','env!=prod', '-o', 'custom-columns=name:.metadata.name', '--no-headers'])
 
