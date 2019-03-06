@@ -1,5 +1,7 @@
 # Setup
 
+Clone this repository.
+
 ## Update config.xml files
 
 specify `repoOwner` and `repository` in `/docker/contrib/jenkins/configuration/jobs/_jenkins/config.xml` and `/docker/contrib/jenkins/configuration/jobs/app/config.xml`:
@@ -28,77 +30,53 @@ const phases = {
   prod:  {namespace:'8gsiqa-prod'  ...
 ```
 
-```
-oc -n 8gsiqa-tools process -f 'openshift/secrets.json' -p 'GH_USERNAME=<username>' -p 'GH_PASSWORD=<personal_access_token>' | oc  -n 8gsiqa-tools create -f -
-
-oc run dev --image=docker-registry.default.svc:5000/bcgov/jenkins-basic:v2-latest -it --rm=true --restart=Never --command=true -- bash
-#Wait for container to startuo and a shell to be available
-
-```
-## Getting Git
-```
-# branch may differ if it's being updated
-git clone --single-branch --depth 1 'https://github.com/BCDevOps/openshift-components.git' -b jenkins-basic /tmp/jenkins
-```
-### From local working directory
-```
-oc rsync 
-```
-
 ## oc login
 ```
 #perform oc login (Copy command from web console)
 ```
 
-### From Local Clone
-
-## Create the Jenkins Configuration
-- copy xxx job configuration file and modify
-  - jenkins.branch.BranchSource.id
-  - repoOwner
-  - repository
-  - scriptPath
-
-
-## Create secrets
-Use the provided `openshift/secrets.json` as follow:
+# create secrets template
 ```
-oc -n csnr-devops-lab-tools create secret generic 'template.jenkins-slave-user' --from-literal=username=jenkins-slave
+oc -n 8gsiqa-tools process -f 'openshift/secrets.json' -p 'GH_USERNAME=<username>' -p 'GH_PASSWORD=<personal_access_token>' | oc  -n 8gsiqa-tools create -f -
+```
 
-oc -n csnr-devops-lab-tools create secret generic 'template.jenkins-github' \
---from-literal=app-name=cvarjao-bot
---from-literal=app-id=17861
---from-file=app-private-key=cvarjao-bot.2019-02-21.private-key.pkcs8.pem
+# Build and Deploy Jenkins locally once for setup
+```
+cd "$(git rev-parse --show-toplevel)/.jenkins/.pipeline"
 
+npm i
 
+npm run build -- --pr=0 --dev-mode=true
+# dev-mode=true makes a binary build from the working directory.
 
-oc -n bcgov-tools process -f 'openshift/secrets.json' -p 'GH_USERNAME=' -p 'GH_PASSWORD=' | oc  -n bcgov-tools create -f -
+npm run deploy -- --pr=0 --env=prod
+
+npm run clean -- --pr=0
+# check in Jenkins PROD log to make sure that there are no Java exceptions logs;
+# if there are any, you will have to escalate to devops team.
 ```
 
 ## Grant Admin access to Jenkins Service account in each managed namespace
 ```
-oc -n bcgov policy add-role-to-user 'admin' 'system:serviceaccounts:bcgov-tools:jenkins'
-oc -n bcgov-tools policy add-role-to-group 'system:image-puller' 'system:serviceaccounts:bcgov'
+oc -n 8gsiqa-dev policy add-role-to-user 'admin' 'system:serviceaccount:8gsiqa-tools:jenkins-prod'
+oc -n 8gsiqa-test policy add-role-to-user 'admin' 'system:serviceaccount:8gsiqa-tools:jenkins-prod'
+oc -n 8gsiqa-prod policy add-role-to-user 'admin' 'system:serviceaccount:8gsiqa-tools:jenkins-prod'
+oc -n 8gsiqa-tools policy add-role-to-group 'system:image-puller' 'system:serviceaccounts:8gsiqa-dev' 'system:serviceaccounts:8gsiqa-test' 'system:serviceaccounts:8gsiqa-prod'
 ```
 
-# Build
+## For local development purposes
+
+### Build
 ```
-( cd "$(git rev-parse --show-toplevel)" && .jenkins/pipeline-cli build --config=.jenkins/openshift/config.groovy --pr=19 )
+( cd "$(git rev-parse --show-toplevel)" && .jenkins/.pipeline/npmw build -- --pr=0 )
 ```
 
-# Deploy
+### Deploy
 ```
-( cd "$(git rev-parse --show-toplevel)" && .jenkins/pipeline-cli deploy --config=.jenkins/openshift/config.groovy --pr=19 --env=prod )
-```
-## Undeploy/Cleanup
-```
-oc -n bcgov-tools delete is/jenkins
+( cd "$(git rev-parse --show-toplevel)" && .jenkins/.pipeline/npmw deploy -- --pr=0 --env=dev )
 ```
 
-## Cleanup
+### Cleanup
 ```
-curl -sSL https://raw.githubusercontent.com/cvarjao-o/hello-world/WIP/.jenkins/docker/contrib/jenkins/configuration/scripts.groovy.d/clean.sh | bash -s - --namespaces=devhub-tools,devhub-dev --app=devhub --pr=1
-
-
--Dkeycloak.migration.action=export -Dkeycloak.migration.provider=dir -Dkeycloak.migration.usersExportStrategy=REALM_FILE -Dkeycloak.migration.dir=/tmp -Dkeycloak.migration.usersExportStrategy=SAME_FILE -Dkeycloak.profile=preview
+( cd "$(git rev-parse --show-toplevel)" && .jenkins/pipeline-cli clean -- --pr=0 --env=dev )
 ```

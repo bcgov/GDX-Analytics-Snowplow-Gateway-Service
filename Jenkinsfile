@@ -61,5 +61,22 @@ pipeline {
                 sh "cd .pipeline && ./npmw deploy -- --pr=${CHANGE_ID} --env=prod"
             }
         }
+        stage('Cleanup') {
+            agent { label 'deploy' }
+            input {
+                message "Ready to Accept/Merge, and Close pull-request?"
+                ok "Yes!"
+                submitter 'authenticated'
+                submitterParameter "APPROVED_BY"
+                parameters {
+                    choice(name: 'MERGE_METHOD', choices: ((env.CHANGE_TARGET == 'master')?['merge', 'squash']:['squash', 'merge']), description: '')
+                }
+            }
+            steps {
+                script{
+                    bcgov.GitHubHelper.mergeAndClosePullRequest(this, "${MERGE_METHOD}")
+                }
+            }
+        }
     }
 }
