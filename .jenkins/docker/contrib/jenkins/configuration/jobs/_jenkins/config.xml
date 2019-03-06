@@ -29,7 +29,7 @@
     <data>
       <jenkins.branch.BranchSource>
         <source class="org.jenkinsci.plugins.github_branch_source.GitHubSCMSource" plugin="github-branch-source@2.3.6">
-          <id>af063640-f094-4df5-842f-e4d8735a029b</id>
+          <id>5da555ef-3374-44a1-9cb6-edfd1497f095</id>
           <credentialsId>github-account</credentialsId>
           <repoOwner>bcgov</repoOwner>
           <repository>GDX-Analytics-OpenShift-Snowplow-Gateway-Service</repository>

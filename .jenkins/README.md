@@ -1,25 +1,46 @@
 # Setup
 
-## Update config.xml
+## Update config.xml files
 
-`/docker/contrib/jenkins/configuration/jobs/_jenkins/config.xml`:
-
-```
-<id>a_gguid</id>
-...
-<repoOwner>bcgov</repoOwner>
-<repository>GDX-Analytics-OpenShift-Snowplow-Gateway-Service</repository>
-```
+specify `repoOwner` and `repository` in `/docker/contrib/jenkins/configuration/jobs/_jenkins/config.xml` and `/docker/contrib/jenkins/configuration/jobs/app/config.xml`:
 
 ```
-oc -n your-project-tools process -f 'openshift/secrets.json' -p 'GH_USERNAME=<YOUR_GH_USERNAME>' -p 'GH_PASSWORD=<YOUR_PERSONAL_ACCESS_TOKEN>' | oc  -n your-project-tools create -f -
+<org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject ...
+  <sources ...
+    <data>
+      <jenkins.branch.BranchSource>
+        <source ...
+          <id>generate a new giud</id>
+            ...
+          <repoOwner>bcgov</repoOwner>
+          <repository>GDX-Analytics-OpenShift-Snowplow-Gateway-Service</repository>
+```
+
+## Update .jenkins/.pipeline/lib/config.js
+
+to set the deployment phase namespaces according to the appropriate project namespaces
+
+```
+const phases = {
+  build: {namespace:'8gsiqa-tools' ...
+  dev:   {namespace:'8gsiqa-dev'   ...
+  test:  {namespace:'8gsiqa-test'  ...
+  prod:  {namespace:'8gsiqa-prod'  ...
+```
+
+```
+oc -n 8gsiqa-tools process -f 'openshift/secrets.json' -p 'GH_USERNAME=mark-walle' -p 'GH_PASSWORD=e1a24d90429246a81417bf5b79963d760a55666b' | oc  -n 8gsiqa-tools create -f -
 
 oc run dev --image=docker-registry.default.svc:5000/bcgov/jenkins-basic:v2-latest -it --rm=true --restart=Never --command=true -- bash
 #Wait for container to startuo and a shell to be available
 
 ```
 ## Getting Git
+
+In the 8gsiqa-tools/browse/pods/dev Terminal:
+
 ```
+# branch may differ if it's being updated
 git clone --single-branch --depth 1 'https://github.com/BCDevOps/openshift-components.git' -b jenkins-basic /tmp/jenkins
 ```
 ### From local working directory

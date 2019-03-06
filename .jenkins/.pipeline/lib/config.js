@@ -9,10 +9,10 @@ if (options.pr == null){
 }
 
 const phases = {
-  build: {namespace:'xxtzwx-tools' , name: NAME, phase: 'build', changeId:changeId, suffix: `-build-${changeId}`, instance: `${NAME}-build-${changeId}`, tag:`build-${version}-${changeId}`},
-    dev: {namespace:'xxtzwx-tools' , name: NAME, phase: 'dev'  , changeId:changeId, suffix: `-dev-${changeId}`  , instance: `${NAME}-dev-${changeId}`  , tag:`dev-${version}-${changeId}`},
-   test: {namespace:'xxtzwx-tools' , name: NAME, phase: 'test' , changeId:changeId, suffix: '-test'             , instance: `${NAME}-test`             , tag:`test-${version}`},
-   prod: {namespace:'xxtzwx-tools' , name: NAME, phase: 'prod' , changeId:changeId, suffix: '-prod'             , instance: `${NAME}-prod`             , tag:`prod-${version}`}
+  build: {namespace:'8gsiqa-tools' , name: NAME, phase: 'build', changeId:changeId, suffix: `-build-${changeId}`, instance: `${NAME}-build-${changeId}`, tag:`build-${version}-${changeId}`},
+    dev: {namespace:'8gsiqa-tools' , name: NAME, phase: 'dev'  , changeId:changeId, suffix: `-dev-${changeId}`  , instance: `${NAME}-dev-${changeId}`  , tag:`dev-${version}-${changeId}`},
+   test: {namespace:'8gsiqa-tools' , name: NAME, phase: 'test' , changeId:changeId, suffix: '-test'             , instance: `${NAME}-test`             , tag:`test-${version}`},
+   prod: {namespace:'8gsiqa-tools' , name: NAME, phase: 'prod' , changeId:changeId, suffix: '-prod'             , instance: `${NAME}-prod`             , tag:`prod-${version}`}
 }
 
 module.exports = exports = phases

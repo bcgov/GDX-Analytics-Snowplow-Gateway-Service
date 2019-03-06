@@ -4,15 +4,13 @@ A gateway service to the Snowplow analytics service for BCGov OpenShift projects
 
 ## Setup
 ```
-oc new-project xxtzwx-tools
-oc new-project xxtzwx-dev
 
-oc -n xxtzwx-tools policy add-role-to-group system:image-puller 'system:serviceaccounts:xxtzwx-dev' --rolebinding-name=cross-project-pull
+oc -n 8gsiqa-tools policy add-role-to-group system:image-puller 'system:serviceaccounts:8gsiqa-dev' --rolebinding-name=cross-project-pull
 
 ```
 ## Build
-
 ```
+
 cd .pipeline
 # Building
 npm run build -- --pr=0 --dev-mode=true
@@ -20,6 +18,7 @@ npm run build -- --pr=0 --dev-mode=true
 ```
 ## Deploy
 ```
+
 # Deploy to DEV
 cd .pipeline
 npm run deploy -- --pr=0 --env=dev
