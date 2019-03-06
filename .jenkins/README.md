@@ -29,16 +29,13 @@ const phases = {
 ```
 
 ```
-oc -n 8gsiqa-tools process -f 'openshift/secrets.json' -p 'GH_USERNAME=mark-walle' -p 'GH_PASSWORD=e1a24d90429246a81417bf5b79963d760a55666b' | oc  -n 8gsiqa-tools create -f -
+oc -n 8gsiqa-tools process -f 'openshift/secrets.json' -p 'GH_USERNAME=<username>' -p 'GH_PASSWORD=<personal_access_token>' | oc  -n 8gsiqa-tools create -f -
 
 oc run dev --image=docker-registry.default.svc:5000/bcgov/jenkins-basic:v2-latest -it --rm=true --restart=Never --command=true -- bash
 #Wait for container to startuo and a shell to be available
 
 ```
 ## Getting Git
-
-In the 8gsiqa-tools/browse/pods/dev Terminal:
-
 ```
 # branch may differ if it's being updated
 git clone --single-branch --depth 1 'https://github.com/BCDevOps/openshift-components.git' -b jenkins-basic /tmp/jenkins
