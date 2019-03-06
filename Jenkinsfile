@@ -33,6 +33,10 @@ pipeline {
         }
         stage('Deploy (TEST)') {
             agent { label 'deploy' }
+            when {
+                expression { return env.CHANGE_TARGET == 'master';}
+                beforeInput true
+            }
             input {
                 message "Should we continue with deployment to TEST?"
                 ok "Yes!"
@@ -40,6 +44,21 @@ pipeline {
             steps {
                 echo "Deploying ..."
                 sh "cd .pipeline && ./npmw deploy -- --pr=${CHANGE_ID} --env=test"
+            }
+        }
+        stage('Deploy (PROD)') {
+            agent { label 'deploy' }
+            when {
+                expression { return env.CHANGE_TARGET == 'master';}
+                beforeInput true
+            }
+            input {
+                message "Should we continue with deployment to PROD?"
+                ok "Yes!"
+            }
+            steps {
+                echo "Deploying ..."
+                sh "cd .pipeline && ./npmw deploy -- --pr=${CHANGE_ID} --env=prod"
             }
         }
     }
