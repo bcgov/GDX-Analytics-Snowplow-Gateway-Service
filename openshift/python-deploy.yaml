@@ -68,6 +68,8 @@ objects:
                 secretKeyRef:
                   key: app-db-username
                   name: ${NAME}-pgsql${SUFFIX}
+            - name: DB_HOSTNAME
+              value: ${NAME}-pgsql-master${SUFFIX}
           name: app
           imagePullPolicy: Always
           ports:
