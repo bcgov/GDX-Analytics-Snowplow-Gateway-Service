@@ -57,17 +57,17 @@ objects:
               valueFrom:
                 secretKeyRef:
                   key: app-db-name
-                  name: ${NAME}${SUFFIX}
+                  name: ${NAME}-pgsql${SUFFIX}
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   key: app-db-password
-                  name: ${NAME}${SUFFIX}
+                  name: ${NAME}-pgsql${SUFFIX}
             - name: DB_USERNAME
               valueFrom:
                 secretKeyRef:
                   key: app-db-username
-                  name: ${NAME}${SUFFIX}
+                  name: ${NAME}-pgsql${SUFFIX}
           name: app
           imagePullPolicy: Always
           ports:
