@@ -1,0 +1,85 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "required": [
+      "env",
+      "namespace",
+      "app_id",
+      "dvce_created_tstamp",
+      "event_data_json"
+    ],
+    "properties": {
+      "env": {
+        "$id": "#/properties/env",
+        "type": "string",
+        "title": "The Env Schema",
+        "default": "",
+        "examples": [
+          "test",
+          "prod"
+        ],
+        "pattern": "^(test|prod)$"
+      },
+      "namespace": {
+        "$id": "#/properties/namespace",
+        "type": "string",
+        "title": "The Namespace Schema",
+        "default": "",
+        "examples": [
+          "TheQ_dev"
+        ],
+        "pattern": "^(.*)$"
+      },
+      "app_id": {
+        "$id": "#/properties/app_id",
+        "type": "string",
+        "title": "The App_id Schema",
+        "default": "",
+        "examples": [
+          "theq"
+        ],
+        "pattern": "^(.*)$"
+      },
+      "dvce_created_tstamp": {
+        "$id": "#/properties/dvce_created_tstamp",
+        "type": "integer",
+        "title": "The Dvce_created_tstamp Schema",
+        "default": 0,
+        "examples": [
+          1419038000
+        ]
+      },
+      "event_data_json": {
+        "$id": "#/properties/event_data_json",
+        "type": "object",
+        "title": "The Event_data_json Schema",
+        "required": [
+          "contexts",
+          "data",
+          "schema"
+        ],
+        "properties": {
+          "contexts": {
+            "$id": "#/properties/event_data_json/properties/contexts",
+            "type": "array",
+            "title": "The Contexts Schema"
+          },
+          "data": {
+            "$id": "#/properties/event_data_json/properties/data",
+            "type": "object",
+            "title": "The Data Schema"
+          },
+          "schema": {
+            "$id": "#/properties/event_data_json/properties/schema",
+            "type": "string",
+            "title": "The Schema Schema",
+            "default": "",
+            "examples": [
+              "iglu:ca.bc.gov.cfmspoc/finish/jsonschema/2-0-0"
+            ],
+            "pattern": "^(.*)$"
+          }
+        }
+      }
+    }
+}
