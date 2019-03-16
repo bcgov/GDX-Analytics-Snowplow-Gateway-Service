@@ -38,15 +38,23 @@ post_schema = json.load(open('post_schema.json', 'r'))
 # Create a connection to postgres, and execute a query
 # Returns the first column for that insertion, which was the postgres generated identifier
 def db_query(sql,execute_tuple,all=False):
-    conn = psycopg2.connect(connect_string)
-    cur = conn.cursor()
-    cur.execute(sql,execute_tuple)
-    if all:
-        fetch = cur.fetchall()
-    else:
-        fetch = cur.fetchone()
-    conn.commit()
-    cur.close()
+    conn = None
+    fetch = None
+    try:
+        conn = psycopg2.connect(connect_string)
+        cur = conn.cursor()
+        cur.execute(sql,execute_tuple)
+        if all:
+            fetch = cur.fetchall()
+        else:
+            fetch = cur.fetchone()
+        conn.commit()
+        cur.close()
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(error)
+    finally:
+        if conn is not None:
+            conn.close()
     return fetch
 
 def plows():
