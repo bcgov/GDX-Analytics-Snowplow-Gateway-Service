@@ -17,6 +17,11 @@ name = os.getenv('DB_NAME')
 user = os.getenv('DB_USERNAME')
 password = os.getenv('DB_PASSWORD')
 
+
+# set up dicts to track emitters and trackers
+e = {}
+t = {}
+
 # Postgres
 connect_string = "host={host} dbname={dbname} user={user} password={password}".format(host=host,dbname=name,user=user,password=password)
 
@@ -79,6 +84,9 @@ def serve():
 
 class RequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
+        # Use the global emitter and tracker dicts
+        global e
+        global t
         received_timestamp = datetime.now()
         ip_address = self.client_address[0]
 
@@ -143,6 +151,30 @@ class RequestHandler(BaseHTTPRequestHandler):
         # TODO: 
         # Insert this request_id into caps.snowplow_calls
         # Send to Snowplow and insert the response to caps.snowplow_calls referencing request_id
+
+
+        # Set up the emitter and tracker. If there is already one for this combination of env, namespace, and app-id, reuse it
+        # TODO: add logic to switch between SPM and Production Snowplow. Note that we don't need to use the anonymization proxy, as we are connecting from a Gov IP, not a personal machine
+        # TODO: add error checking
+        tracker_identifier = json_object['env'] + "-" + json_object['namespace'] + "-" + json_object['app_id']
+        if tracker_identifier not in e:
+            e[tracker_identifier] = AsyncEmitter("spm.gov.bc.ca", protocol="https")
+        if tracker_identifier not in t:
+            t[tracker_identifier] = Tracker(e[tracker_identifier], encode_base64=False, app_id=json_object['app_id'], namespace=json_object['namespace'])
+
+        # Build event JSON
+        # TODO: add error checking
+        event = SelfDescribingJson(json_object['event_data_json']['schema'], json_object['event_data_json']['data'])
+        # Build contexts
+        # TODO: add error checking
+        contexts = [] 
+        for context in json_object['event_data_json']['contexts']:
+           contexts.append(SelfDescribingJson(context['schema'], context['data']))
+        
+        # Send call to Snowplow
+        # TODO: add error checking
+        t[tracker_identifier].track_self_describing_event(event, contexts, tstamp=json_object['dvce_created_tstamp'])
+        
         snowplow_tuple = (str(request_id),)
         snowplow_id = db_query(snowplow_no_call_sql, snowplow_tuple)[0]
 
