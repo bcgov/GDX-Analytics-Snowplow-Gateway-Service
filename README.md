@@ -72,8 +72,8 @@ The following snippet of JSON is an example of a POST body which will validate a
 ```json
 {
     "env": "test",
-    "namespace": "TheQ_dev",
-    "app_id": "theq",
+    "namespace": "CAPS_test",
+    "app_id": "CAPS_test",
     "dvce_created_tstamp": 1555802400000,
     "event_data_json": {
         "contexts": [
