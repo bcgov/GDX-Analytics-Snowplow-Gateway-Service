@@ -80,7 +80,7 @@ The following snippet of JSON is an example of a POST body which will validate a
             {
                 "data": {
                     "client_id": 283732,
-                    "service count": 2,
+                    "service_count": 2,
                     "quick_txn": false
                 },
                 "schema": "iglu:ca.bc.gov.cfmspoc/citizen/jsonschema/3-0-0"
