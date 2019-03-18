@@ -58,3 +58,4 @@ oc rsync --no-perms=true ./ <pod_id>:/home/postgres
 oc rsh <pod_id>
 psql caps -f caps_schema.sql
 ```
+
