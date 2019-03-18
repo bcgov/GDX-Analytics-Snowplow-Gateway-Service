@@ -1,1 +1,1 @@
-snowplow-tracker ~> 0.8.0
+snowplow-tracker==0.8.2
