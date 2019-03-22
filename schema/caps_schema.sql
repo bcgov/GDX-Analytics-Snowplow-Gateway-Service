@@ -23,7 +23,12 @@ CREATE TABLE IF NOT EXISTS caps.snowplow_calls (
     snowplow_send_id SERIAL PRIMARY KEY,
     request_id INTEGER REFERENCES caps.client_calls(request_id),
     sent_timestamp TIMESTAMP,
-    snowplow_response VARCHAR(1023),
-    try_number INTEGER
+    snowplow_response INTEGER,
+    try_number INTEGER,
+    environment VARCHAR(50),
+    namespace VARCHAR(255),
+    app_id VARCHAR(255),
+    device_created_timestamp TIMESTAMP,
+    event_data_json VARCHAR(4095)
 );
 ALTER TABLE caps.snowplow_calls OWNER TO caps;

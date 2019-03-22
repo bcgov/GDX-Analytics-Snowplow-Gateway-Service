@@ -7,9 +7,31 @@ from datetime import datetime
 from time import sleep
 import jsonschema
 import psycopg2
+import logging
 import urllib
+import signal
+import sys
 import json
 import os
+
+#log level
+INFO=True
+DEBUG=True
+
+def logtime():
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")[:-3]
+
+def log(l,s):
+    log_line = "{} CAPS [{}]: {}".format(logtime(),l,s)
+    if (INFO is not True and l is "INFO") or (DEBUG is not True and l is "DEBUG"):
+        return # supress these if the log levels are not True
+    elif l is "ERROR" or l is "DEBUG" or l is "INFO":
+        print(log_line) # ERROR is not never suppressed
+
+def signal_handler(signal, frame):
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
 
 # Retrieve env variables
 host = os.getenv('DB_HOSTNAME')
@@ -25,17 +47,18 @@ t = {}
 # Postgres
 connect_string = "host={host} dbname={dbname} user={user} password={password}".format(host=host,dbname=name,user=user,password=password)
 
-
+# Database Query Strings
+# Timestamps are in ms and their calculation for insertion as a datetime is handled by postgres, which natively regards datetimes as being in seconds.
 client_calls_sql = """INSERT INTO caps.client_calls(received_timestamp,ip_address,response_code,raw_data,environment,namespace,app_id,device_created_timestamp,event_data_json)
-                      VALUES(%s,%s,%s,%s,%s,%s,%s,TO_TIMESTAMP(%s::decimal/1000),%s) RETURNING request_id ;"""
+                      VALUES(NOW(), %s, %s, %s, %s, %s, %s, TO_TIMESTAMP(%s::decimal/1000), %s) RETURNING request_id ;"""
+
+snowplow_calls_sql = """INSERT INTO caps.snowplow_calls(request_id, sent_timestamp, snowplow_response, try_number,environment,namespace,app_id,device_created_timestamp,event_data_json)
+                        VALUES(%s, NOW(), %s, %s, %s, %s, %s, TO_TIMESTAMP(%s::decimal/1000), %s) RETURNING snowplow_send_id ;"""
 
 snowplow_no_call_sql = """INSERT INTO caps.snowplow_calls(request_id)
                                     VALUES(%s) RETURNING snowplow_send_id ;"""
 
 snowplow_select_uncalled = """SELECT * FROM caps.snowplow_calls WHERE try_number IS NULL ;"""
-
-snowplow_calls_sql = """INSERT INTO caps.snowplow_calls(request_id, sent_timestamp, snowplow_response, try_number)
-                        VALUES(%s, %s, %s, %s) RETURNING snowplow_send_id ;"""
 
 # POST body JSON validation schema
 post_schema = json.load(open('post_schema.json', 'r'))
@@ -47,6 +70,9 @@ def db_query(sql,execute_tuple,all=False):
     fetch = None
     try:
         conn = psycopg2.connect(connect_string)
+        if conn.closed is not 0:
+            log("ERROR","Failed to connect to database; check that postgres is running and connection variables are set correctly.")
+            sys.exit(1)
         cur = conn.cursor()
         cur.execute(sql,execute_tuple)
         if all:
@@ -62,32 +88,103 @@ def db_query(sql,execute_tuple,all=False):
             conn.close()
     return fetch
 
-def plows():
-    while True:
-        sleep(10)
-        rows = db_query(snowplow_select_uncalled,None,True)
-        for row in rows:
-            snowplow_id = row[0]
-            request_id = row[1]
-            query = db_query("SELECT environment,namespace,app_id,device_created_timestamp,event_data_json FROM caps.client_calls WHERE request_id = {}".format(request_id),None)
-            environment = query[0]
-            namespace = query[1]
-            app_id = query[2]
-            device_created_timestamp = query[3]
-            event_data_json = json.loads(query[4])
-            # print("{} {} {} {}".format(environment,namespace,app_id,device_created_timestamp))
+def call_snowplow(request_id,json_object):
+    
+    # Use the global emitter and tracker dicts
+    global e
+    global t
 
-def serve():
-    server_address = ('0.0.0.0', 443)
-    httpd = HTTPServer(server_address, RequestHandler)
-    httpd.serve_forever()   
+    # callback for passed calls - insert 
+    def passed_call(x):
+        print()
+        snowplow_tuple = (
+            str(request_id),
+            str(200),
+            str(1),
+            json_object['env'],
+            json_object['namespace'],
+            json_object['app_id'],
+            json_object['dvce_created_tstamp'],
+            json.dumps(json_object['event_data_json'])
+        )
+        
+        snowplow_id = db_query(snowplow_calls_sql, snowplow_tuple)[0]
+        log("INFO","Emitter call PASSED on request_id: {} with snowplow_id: {}.".format(request_id,snowplow_id))
+
+    unsent_events = []
+
+    def failed_call(failed_events_count, failed_events):
+        # possible backoff-and-retry timeout here
+        prev=0
+        for i,event in enumerate(failed_events):
+            sleep(i + prev)
+            prev = i
+            snowplow_tuple = (
+                str(request_id),
+                str(400),
+                str(i + 1),
+                json_object['env'],
+                json_object['namespace'],
+                json_object['app_id'],
+                json_object['dvce_created_tstamp'],
+                json.dumps(json_object['event_data_json'])
+            )
+            snowplow_id = db_query(snowplow_calls_sql, snowplow_tuple)[0]
+            e[tracker_identifier].input(event)
+            
+            log("INFO","Emitter call FAILED on request_id: {} with snowplow_id: {}.".format(request_id,snowplow_id))
+
+            # for event_dict in y:
+            #     print(event_dict)
+            #     unsent_events.append(event_dict)
+
+    
+    tracker_identifier = json_object['env'] + "-" + json_object['namespace'] + "-" + json_object['app_id']
+    log("INFO","New request with tracker_identifier {}".format(tracker_identifier))
+
+    # logic to switch between SPM and Production Snowplow.
+    # TODO: Fix SSL problem so to omit the anonymization proxy, since we connect from a Gov IP, not a personal machine
+    sp_endpoint = os.getenv("SP_ENDPOINT_{}".format(json_object['env'].upper()))
+    log("DEBUG","Using Snowplow Endpoint {}".format(sp_endpoint))
+
+    # Set up the emitter and tracker. If there is already one for this combination of env, namespace, and app-id, reuse it
+    # TODO: add error checking
+    if tracker_identifier not in e:
+        e[tracker_identifier] = AsyncEmitter(sp_endpoint, protocol="https", on_success=passed_call, on_failure=failed_call)
+    if tracker_identifier not in t:
+        t[tracker_identifier] = Tracker(e[tracker_identifier], encode_base64=False, app_id=json_object['app_id'], namespace=json_object['namespace'])
+
+    # Build event JSON
+    # TODO: add error checking
+    event = SelfDescribingJson(json_object['event_data_json']['schema'], json_object['event_data_json']['data'])
+    # Build contexts
+    # TODO: add error checking
+    contexts = [] 
+    for context in json_object['event_data_json']['contexts']:
+        contexts.append(SelfDescribingJson(context['schema'], context['data']))
+    
+    # Send call to Snowplow
+    # TODO: add error checking
+    t[tracker_identifier].track_self_describing_event(event, contexts, tstamp=json_object['dvce_created_tstamp'])
+
+# cycles through events that the snowplow emitter did not return 200 on
+# def cycle():
+#     while True:
+#         sleep(10)
+#         rows = db_query(snowplow_select_uncalled,None,True)
+#         for row in rows:
+#             snowplow_id = row[0]
+#             request_id = row[1]
+#             query = db_query("SELECT environment,namespace,app_id,device_created_timestamp,event_data_json FROM caps.client_calls WHERE request_id = {}".format(request_id),None)
+#             environment = query[0]
+#             namespace = query[1]
+#             app_id = query[2]
+#             device_created_timestamp = query[3]
+#             event_data_json = json.loads(query[4])
+#             # print("{} {} {} {}".format(environment,namespace,app_id,device_created_timestamp))
 
 class RequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
-        # Use the global emitter and tracker dicts
-        global e
-        global t
-        received_timestamp = datetime.now()
         ip_address = self.client_address[0]
 
         length = int(self.headers['Content-Length'])
@@ -101,7 +198,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.send_response(response_code, 'POST body is not parsable as JSON.')
             self.send_header('Content-type', 'text/plain')
             self.end_headers()
-            post_tuple = (received_timestamp,ip_address,response_code,post_data,None,None,None,None,None)
+            post_tuple = (ip_address,response_code,post_data,None,None,None,None,None)
             request_id = db_query(client_calls_sql,post_tuple)[0]
             return
             
@@ -113,11 +210,11 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.send_response(response_code, 'POST JSON is not compliant with schema.')
             self.send_header('Content-type', 'text/plain')
             self.end_headers()
-            post_tuple = (received_timestamp,ip_address,response_code,post_data,None,None,None,None,None)
+            post_tuple = (ip_address,response_code,post_data,None,None,None,None,None)
             request_id = db_query(client_calls_sql,post_tuple)[0]
             return
 
-        # TODO: test that the input device_created_timestamp is in ms
+        # Test that the input device_created_timestamp is in ms
         device_created_timestamp = json_object['dvce_created_tstamp']
         if device_created_timestamp < 99999999999: # 11 digits, Sat Mar 03 1973 09:46:39 UTC
             # it's too small to be in seconds
@@ -125,7 +222,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.send_response(response_code, 'Device Created Timestamp is not in milliseconds.')
             self.send_header('Content-type', 'text/plain')
             self.end_headers()
-            post_tuple = (received_timestamp,ip_address,response_code,post_data,None,None,None,None,None)
+            post_tuple = (ip_address,response_code,post_data,None,None,None,None,None)
             request_id = db_query(client_calls_sql,post_tuple)[0]
             return
 
@@ -136,8 +233,8 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/plain')
         self.end_headers()
 
+        # insert the parsed post body into the client_calls table
         post_tuple = (
-            received_timestamp,
             ip_address,
             response_code,
             post_data,
@@ -145,38 +242,23 @@ class RequestHandler(BaseHTTPRequestHandler):
             json_object['namespace'],
             json_object['app_id'],
             json_object['dvce_created_tstamp'],
-            json.dumps(json_object['event_data_json']))
+            json.dumps(json_object['event_data_json'])
+        )
         request_id = db_query(client_calls_sql, post_tuple)[0]
 
-        # TODO: 
-        # Insert this request_id into caps.snowplow_calls
-        # Send to Snowplow and insert the response to caps.snowplow_calls referencing request_id
+        call_snowplow(request_id, json_object)
 
+def serve():
+    server_address = ('0.0.0.0', 80)
+    httpd = HTTPServer(server_address, RequestHandler)
+    log("INFO","Listening for POST requests on port 80.")
+    httpd.serve_forever()
 
-        # Set up the emitter and tracker. If there is already one for this combination of env, namespace, and app-id, reuse it
-        # TODO: add logic to switch between SPM and Production Snowplow. Note that we don't need to use the anonymization proxy, as we are connecting from a Gov IP, not a personal machine
-        # TODO: add error checking
-        tracker_identifier = json_object['env'] + "-" + json_object['namespace'] + "-" + json_object['app_id']
-        if tracker_identifier not in e:
-            e[tracker_identifier] = AsyncEmitter("spm.gov.bc.ca", protocol="https")
-        if tracker_identifier not in t:
-            t[tracker_identifier] = Tracker(e[tracker_identifier], encode_base64=False, app_id=json_object['app_id'], namespace=json_object['namespace'])
+if db_query("SELECT 1 ;",None)[0] is not 1:
+    log("ERROR","There is a problem querying the database.")
+    sys.exit(1)
 
-        # Build event JSON
-        # TODO: add error checking
-        event = SelfDescribingJson(json_object['event_data_json']['schema'], json_object['event_data_json']['data'])
-        # Build contexts
-        # TODO: add error checking
-        contexts = [] 
-        for context in json_object['event_data_json']['contexts']:
-           contexts.append(SelfDescribingJson(context['schema'], context['data']))
-        
-        # Send call to Snowplow
-        # TODO: add error checking
-        t[tracker_identifier].track_self_describing_event(event, contexts, tstamp=json_object['dvce_created_tstamp'])
-        
-        snowplow_tuple = (str(request_id),)
-        snowplow_id = db_query(snowplow_no_call_sql, snowplow_tuple)[0]
-
-Process(target=serve).start()
-Process(target=plows).start()
+print("\nGDX Analytics as a Service\n===")
+serve()
+# Process(target=serve).start()
+# Process(target=cycle).start()
