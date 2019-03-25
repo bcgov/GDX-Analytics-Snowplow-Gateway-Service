@@ -22,7 +22,7 @@ def logtime():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")[:-3]
 
 def log(l,s):
-    log_line = "{} CAPS [{}]: {}".format(logtime(),l,s)
+    log_line = "{} CAPS [{}]:\t{}".format(logtime(),l,s)
     if (INFO is not True and l is "INFO") or (DEBUG is not True and l is "DEBUG"):
         return # supress these if the log levels are not True
     elif l is "ERROR" or l is "DEBUG" or l is "INFO":
@@ -39,6 +39,8 @@ name = os.getenv('DB_NAME')
 user = os.getenv('DB_USERNAME')
 password = os.getenv('DB_PASSWORD')
 
+address = '0.0.0.0'
+port = 80
 
 # set up dicts to track emitters and trackers
 e = {}
@@ -94,9 +96,13 @@ def call_snowplow(request_id,json_object):
     global e
     global t
 
-    # callback for passed calls - insert 
-    def passed_call(x):
-        print()
+
+    # callbacks are documented in
+    # - https://github.com/snowplow/snowplow/wiki/Python-Tracker#emitters
+
+    # callback for passed calls - 
+    def on_success(successfully_sent_count):
+        log("INFO","Emitter call PASSED on request_id: {}.".format(request_id))
         snowplow_tuple = (
             str(request_id),
             str(200),
@@ -107,22 +113,33 @@ def call_snowplow(request_id,json_object):
             json_object['dvce_created_tstamp'],
             json.dumps(json_object['event_data_json'])
         )
-        
         snowplow_id = db_query(snowplow_calls_sql, snowplow_tuple)[0]
-        log("INFO","Emitter call PASSED on request_id: {} with snowplow_id: {}.".format(request_id,snowplow_id))
+        log("INFO","snowplow call table insertion PASSED on request_id: {} and snowplow_id: {}.".format(request_id, snowplow_id))
+    
+    # callback for failed calls - 
+    backoff_outside_the_scope = 1
+    def on_failure(successfully_sent_count, failed_events):
+        # print("successfully_sent_count: {}".format(successfully_sent_count))
+        # print("LIST SIZE: {}".format(len(failed_events)))
+        nonlocal backoff_outside_the_scope
+        # if events have failed, increase the backoff
+        if (failed_events):
+            sleep(backoff_outside_the_scope)
+            backoff_outside_the_scope *= 2
+        else:
+            backoff_outside_the_scope = 1
 
-    unsent_events = []
-
-    def failed_call(failed_events_count, failed_events):
-        # possible backoff-and-retry timeout here
-        prev=0
-        for i,event in enumerate(failed_events):
-            sleep(i + prev)
-            prev = i
+        for event in failed_events:
+            log("INFO","Emitter call FAILED on request_id: {}.".format(request_id))
+            # Get the try count
+            try_number = db_query("SELECT MAX(try_number) FROM caps.snowplow_calls WHERE request_id = %s ;",(request_id))
+            if try_number is None:
+                try_number=0
+            try_number += 1
             snowplow_tuple = (
                 str(request_id),
                 str(400),
-                str(i + 1),
+                str(try_number),
                 json_object['env'],
                 json_object['namespace'],
                 json_object['app_id'],
@@ -130,9 +147,8 @@ def call_snowplow(request_id,json_object):
                 json.dumps(json_object['event_data_json'])
             )
             snowplow_id = db_query(snowplow_calls_sql, snowplow_tuple)[0]
+            log("INFO","snowplow call table insertion PASSED on request_id: {} and snowplow_id: {}.".format(request_id, snowplow_id))
             e[tracker_identifier].input(event)
-            
-            log("INFO","Emitter call FAILED on request_id: {} with snowplow_id: {}.".format(request_id,snowplow_id))
 
             # for event_dict in y:
             #     print(event_dict)
@@ -140,7 +156,7 @@ def call_snowplow(request_id,json_object):
 
     
     tracker_identifier = json_object['env'] + "-" + json_object['namespace'] + "-" + json_object['app_id']
-    log("INFO","New request with tracker_identifier {}".format(tracker_identifier))
+    log("DEBUG","New request with tracker_identifier {}".format(tracker_identifier))
 
     # logic to switch between SPM and Production Snowplow.
     # TODO: Fix SSL problem so to omit the anonymization proxy, since we connect from a Gov IP, not a personal machine
@@ -150,7 +166,8 @@ def call_snowplow(request_id,json_object):
     # Set up the emitter and tracker. If there is already one for this combination of env, namespace, and app-id, reuse it
     # TODO: add error checking
     if tracker_identifier not in e:
-        e[tracker_identifier] = AsyncEmitter(sp_endpoint, protocol="https", on_success=passed_call, on_failure=failed_call)
+        # buffer size is the number of events to store before flushing; this is 1 to ensure a single call for every POST
+        e[tracker_identifier] = AsyncEmitter(sp_endpoint, protocol="https", on_success=on_success, on_failure=on_failure)
     if tracker_identifier not in t:
         t[tracker_identifier] = Tracker(e[tracker_identifier], encode_base64=False, app_id=json_object['app_id'], namespace=json_object['namespace'])
 
@@ -162,26 +179,10 @@ def call_snowplow(request_id,json_object):
     contexts = [] 
     for context in json_object['event_data_json']['contexts']:
         contexts.append(SelfDescribingJson(context['schema'], context['data']))
-    
+
     # Send call to Snowplow
     # TODO: add error checking
     t[tracker_identifier].track_self_describing_event(event, contexts, tstamp=json_object['dvce_created_tstamp'])
-
-# cycles through events that the snowplow emitter did not return 200 on
-# def cycle():
-#     while True:
-#         sleep(10)
-#         rows = db_query(snowplow_select_uncalled,None,True)
-#         for row in rows:
-#             snowplow_id = row[0]
-#             request_id = row[1]
-#             query = db_query("SELECT environment,namespace,app_id,device_created_timestamp,event_data_json FROM caps.client_calls WHERE request_id = {}".format(request_id),None)
-#             environment = query[0]
-#             namespace = query[1]
-#             app_id = query[2]
-#             device_created_timestamp = query[3]
-#             event_data_json = json.loads(query[4])
-#             # print("{} {} {} {}".format(environment,namespace,app_id,device_created_timestamp))
 
 class RequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
@@ -249,9 +250,9 @@ class RequestHandler(BaseHTTPRequestHandler):
         call_snowplow(request_id, json_object)
 
 def serve():
-    server_address = ('0.0.0.0', 80)
+    server_address = (address, port)
     httpd = HTTPServer(server_address, RequestHandler)
-    log("INFO","Listening for POST requests on port 80.")
+    log("INFO","Listening for POST requests to {} on port {}.".format(address,port))
     httpd.serve_forever()
 
 if db_query("SELECT 1 ;",None)[0] is not 1:
@@ -260,5 +261,3 @@ if db_query("SELECT 1 ;",None)[0] is not 1:
 
 print("\nGDX Analytics as a Service\n===")
 serve()
-# Process(target=serve).start()
-# Process(target=cycle).start()
