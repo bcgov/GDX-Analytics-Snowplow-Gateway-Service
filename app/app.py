@@ -243,15 +243,12 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         call_snowplow(request_id, json_object)
 
-def serve():
-    server_address = (address, port)
-    httpd = HTTPServer(server_address, RequestHandler)
-    log("INFO","Listening for POST requests to {} on port {}.".format(address,port))
-    httpd.serve_forever()
 
 # if db_query("SELECT 1 ;",None)[0] is not 1:
 #     log("ERROR","There is a problem querying the database.")
 #     sys.exit(1)
 
 print("\nGDX Analytics as a Service\n===")
-serve()
+httpd = HTTPServer(('0.0.0.0', 8080), RequestHandler)
+log("INFO","Listening for POST requests to {} on port {}.".format('0.0.0.0',8080))
+httpd.serve_forever()
