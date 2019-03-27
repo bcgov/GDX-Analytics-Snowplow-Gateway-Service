@@ -2,8 +2,8 @@
 -- CREATE ROLE caps;
 -- ALTER ROLE caps LOGIN;
 -- ALTER ROLE caps WITH PASSWORD ''; -- provide a password
--- CREATE SCHEMA IF NOT EXISTS caps;
--- GRANT USAGE ON SCHEMA caps TO caps;
+CREATE SCHEMA IF NOT EXISTS caps;
+GRANT USAGE ON SCHEMA caps TO caps;
 DROP TABLE IF EXISTS caps.client_calls CASCADE;
 CREATE TABLE IF NOT EXISTS caps.client_calls (
     request_id SERIAL PRIMARY KEY,

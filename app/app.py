@@ -40,7 +40,7 @@ user = os.getenv('DB_USERNAME')
 password = os.getenv('DB_PASSWORD')
 
 address = '0.0.0.0'
-port = 80
+port = 8080
 
 # set up dicts to track emitters and trackers
 e = {}
@@ -96,17 +96,19 @@ def call_snowplow(request_id,json_object):
     global e
     global t
 
-
     # callbacks are documented in
     # - https://github.com/snowplow/snowplow/wiki/Python-Tracker#emitters
 
-    # callback for passed calls - 
+    # callback for passed calls
     def on_success(successfully_sent_count):
         log("INFO","Emitter call PASSED on request_id: {}.".format(request_id))
+        backoff_outside_the_scope = 1 # reset the backoff if this is successful
+        # get previous try number, choose larger of 0 or query result and add 1
+        try_number = max(i for i in [0,db_query("SELECT MAX(try_number) FROM caps.snowplow_calls WHERE request_id = %s ;",(request_id))] if i is not None) + 1
         snowplow_tuple = (
             str(request_id),
             str(200),
-            str(1),
+            str(try_number),
             json_object['env'],
             json_object['namespace'],
             json_object['app_id'],
@@ -116,26 +118,20 @@ def call_snowplow(request_id,json_object):
         snowplow_id = db_query(snowplow_calls_sql, snowplow_tuple)[0]
         log("INFO","snowplow call table insertion PASSED on request_id: {} and snowplow_id: {}.".format(request_id, snowplow_id))
     
-    # callback for failed calls - 
+    # callback for failed calls
     backoff_outside_the_scope = 1
     def on_failure(successfully_sent_count, failed_events):
+        log("INFO","Emitter call FAILED on request_id: {}.".format(request_id))
         # print("successfully_sent_count: {}".format(successfully_sent_count))
         # print("LIST SIZE: {}".format(len(failed_events)))
         nonlocal backoff_outside_the_scope
         # if events have failed, increase the backoff
-        if (failed_events):
-            sleep(backoff_outside_the_scope)
-            backoff_outside_the_scope *= 2
-        else:
-            backoff_outside_the_scope = 1
+        sleep(backoff_outside_the_scope)
+        backoff_outside_the_scope *= 2
 
         for event in failed_events:
-            log("INFO","Emitter call FAILED on request_id: {}.".format(request_id))
-            # Get the try count
-            try_number = db_query("SELECT MAX(try_number) FROM caps.snowplow_calls WHERE request_id = %s ;",(request_id))
-            if try_number is None:
-                try_number=0
-            try_number += 1
+            # get previous try number, choose larger of 0 or query result and add 1
+            try_number = max(i for i in [0,db_query("SELECT MAX(try_number) FROM caps.snowplow_calls WHERE request_id = %s ;",(request_id))] if i is not None) + 1
             snowplow_tuple = (
                 str(request_id),
                 str(400),
@@ -187,8 +183,6 @@ def call_snowplow(request_id,json_object):
 class RequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         ip_address = self.client_address[0]
-
-        length = int(self.headers['Content-Length'])
         post_data = self.rfile.read(length).decode('utf-8')
 
         # Test that the post_data is JSON
@@ -255,9 +249,9 @@ def serve():
     log("INFO","Listening for POST requests to {} on port {}.".format(address,port))
     httpd.serve_forever()
 
-if db_query("SELECT 1 ;",None)[0] is not 1:
-    log("ERROR","There is a problem querying the database.")
-    sys.exit(1)
+# if db_query("SELECT 1 ;",None)[0] is not 1:
+#     log("ERROR","There is a problem querying the database.")
+#     sys.exit(1)
 
 print("\nGDX Analytics as a Service\n===")
 serve()
