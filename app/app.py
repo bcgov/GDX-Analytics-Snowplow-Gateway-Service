@@ -183,6 +183,7 @@ def call_snowplow(request_id,json_object):
 class RequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         ip_address = self.client_address[0]
+        length = int(self.headers['Content-Length'])
         post_data = self.rfile.read(length).decode('utf-8')
 
         # Test that the post_data is JSON
