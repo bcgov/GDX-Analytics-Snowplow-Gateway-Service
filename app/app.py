@@ -104,7 +104,8 @@ def call_snowplow(request_id,json_object):
         log("INFO","Emitter call PASSED on request_id: {}.".format(request_id))
         backoff_outside_the_scope = 1 # reset the backoff if this is successful
         # get previous try number, choose larger of 0 or query result and add 1
-        try_number = max(i for i in [0,db_query("SELECT MAX(try_number) FROM caps.snowplow_calls WHERE request_id = %s ;",(request_id))] if i is not None) + 1
+        try_number = max(i for i in [0,db_query("SELECT MAX(try_number) FROM caps.snowplow_calls WHERE request_id = %s ;", (request_id, ))[0]] if i is not None) + 1
+        log("DEBUG","Try number: {}".format(try_number))
         snowplow_tuple = (
             str(request_id),
             str(200),
@@ -131,7 +132,8 @@ def call_snowplow(request_id,json_object):
 
         for event in failed_events:
             # get previous try number, choose larger of 0 or query result and add 1
-            try_number = max(i for i in [0,db_query("SELECT MAX(try_number) FROM caps.snowplow_calls WHERE request_id = %s ;",(request_id))] if i is not None) + 1
+            try_number = max(i for i in [0,db_query("SELECT MAX(try_number) FROM caps.snowplow_calls WHERE request_id = %s ;", (request_id, ))[0]] if i is not None) + 1
+            log("DEBUG","Try number: {}".format(try_number))
             snowplow_tuple = (
                 str(request_id),
                 str(400),
@@ -145,11 +147,6 @@ def call_snowplow(request_id,json_object):
             snowplow_id = db_query(snowplow_calls_sql, snowplow_tuple)[0]
             log("INFO","snowplow call table insertion PASSED on request_id: {} and snowplow_id: {}.".format(request_id, snowplow_id))
             e[tracker_identifier].input(event)
-
-            # for event_dict in y:
-            #     print(event_dict)
-            #     unsent_events.append(event_dict)
-
     
     tracker_identifier = json_object['env'] + "-" + json_object['namespace'] + "-" + json_object['app_id']
     log("DEBUG","New request with tracker_identifier {}".format(tracker_identifier))
