@@ -90,6 +90,12 @@ def db_query(sql,execute_tuple,all=False):
             conn.close()
     return fetch
 
+# Used for on_failure retry backoff; returns the number at index n in the Fibonacci sequence
+def binets_formula(n):
+    sqrt5 = 5 ** 0.5
+    F_n = int((( (1 + sqrt5) ** n - (1 - sqrt5) ** n ) / ( 2 ** n * sqrt5 )))
+    return F_n
+
 def call_snowplow(request_id,json_object):
     
     # Use the global emitter and tracker dicts
@@ -120,24 +126,28 @@ def call_snowplow(request_id,json_object):
         log("INFO","snowplow call table insertion PASSED on request_id: {} and snowplow_id: {}.".format(request_id, snowplow_id))
     
     # callback for failed calls
-    backoff_outside_the_scope = 1
+    failed_try = 0
     def on_failure(successfully_sent_count, failed_events):
-        log("INFO","Emitter call FAILED on request_id: {}.".format(request_id))
-        # print("successfully_sent_count: {}".format(successfully_sent_count))
-        # print("LIST SIZE: {}".format(len(failed_events)))
-        nonlocal backoff_outside_the_scope
-        # if events have failed, increase the backoff
-        sleep(backoff_outside_the_scope)
-        backoff_outside_the_scope *= 2
+        # increment the failed try
+        nonlocal failed_try
+        failed_try += 1
 
+        # sleep according to the number indexed by failed_try in the fibonacci sequence
+        sleep_time = binets_formula(failed_try)
+        log("INFO","Emitter call FAILED on request_id {} on try {}. Seconds until re-attempt: {}.".format(request_id,failed_try,sleep_time))
+        
+        # Leaving this sleep delay until inputting after a failed event is ready
+        #sleep(sleep_time)
+
+        # failed_events should always contain only one event, because ASyncEmitter has a buffer size of 1
         for event in failed_events:
             # get previous try number, choose larger of 0 or query result and add 1
-            try_number = max(i for i in [0,db_query("SELECT MAX(try_number) FROM caps.snowplow_calls WHERE request_id = %s ;", (request_id, ))[0]] if i is not None) + 1
-            log("DEBUG","Try number: {}".format(try_number))
+            # try_number = max(i for i in [0,db_query("SELECT MAX(try_number) FROM caps.snowplow_calls WHERE request_id = %s ;", (request_id, ))[0]] if i is not None) + 1
+            # log("DEBUG","Try number: {}".format(try_number))
             snowplow_tuple = (
                 str(request_id),
                 str(400),
-                str(try_number),
+                str(failed_try),
                 json_object['env'],
                 json_object['namespace'],
                 json_object['app_id'],
@@ -146,7 +156,8 @@ def call_snowplow(request_id,json_object):
             )
             snowplow_id = db_query(snowplow_calls_sql, snowplow_tuple)[0]
             log("INFO","snowplow call table insertion PASSED on request_id: {} and snowplow_id: {}.".format(request_id, snowplow_id))
-            e[tracker_identifier].input(event)
+            # Re-attempt the event call by inputting it back to the emitter
+            #e[tracker_identifier].input(event)
     
     tracker_identifier = json_object['env'] + "-" + json_object['namespace'] + "-" + json_object['app_id']
     log("DEBUG","New request with tracker_identifier {}".format(tracker_identifier))
@@ -240,7 +251,6 @@ class RequestHandler(BaseHTTPRequestHandler):
         request_id = db_query(client_calls_sql, post_tuple)[0]
 
         call_snowplow(request_id, json_object)
-
 
 # if db_query("SELECT 1 ;",None)[0] is not 1:
 #     log("ERROR","There is a problem querying the database.")
