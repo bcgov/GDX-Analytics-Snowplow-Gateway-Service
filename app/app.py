@@ -57,11 +57,6 @@ client_calls_sql = """INSERT INTO caps.client_calls(received_timestamp,ip_addres
 snowplow_calls_sql = """INSERT INTO caps.snowplow_calls(request_id, sent_timestamp, snowplow_response, try_number,environment,namespace,app_id,device_created_timestamp,event_data_json)
                         VALUES(%s, NOW(), %s, %s, %s, %s, %s, TO_TIMESTAMP(%s::decimal/1000), %s) RETURNING snowplow_send_id ;"""
 
-snowplow_no_call_sql = """INSERT INTO caps.snowplow_calls(request_id)
-                                    VALUES(%s) RETURNING snowplow_send_id ;"""
-
-snowplow_select_uncalled = """SELECT * FROM caps.snowplow_calls WHERE try_number IS NULL ;"""
-
 # POST body JSON validation schema
 post_schema = json.load(open('post_schema.json', 'r'))
 
@@ -134,7 +129,8 @@ def call_snowplow(request_id,json_object):
 
         # sleep according to the number indexed by failed_try in the fibonacci sequence
         sleep_time = binets_formula(failed_try)
-        log("INFO","Emitter call FAILED on request_id {} on try {}. Seconds until re-attempt: {}.".format(request_id,failed_try,sleep_time))
+        #log("INFO","Emitter call FAILED on request_id {} on try {}. Seconds until re-attempt: {}.".format(request_id,failed_try,sleep_time))
+        log("INFO","Emitter call FAILED on request_id {} on try {}. No re-attempt will be made.".format(request_id,failed_try))
         
         # Leaving this sleep delay until inputting after a failed event is ready
         #sleep(sleep_time)
@@ -170,7 +166,7 @@ def call_snowplow(request_id,json_object):
     # Set up the emitter and tracker. If there is already one for this combination of env, namespace, and app-id, reuse it
     # TODO: add error checking
     if tracker_identifier not in e:
-        # buffer size is the number of events to store before flushing; this is 1 to ensure a single call for every POST
+        # defaults to a GET method, defaults to a buffer size of 1; buffer is flushed once full.
         e[tracker_identifier] = AsyncEmitter(sp_endpoint, protocol="https", on_success=on_success, on_failure=on_failure)
     if tracker_identifier not in t:
         t[tracker_identifier] = Tracker(e[tracker_identifier], encode_base64=False, app_id=json_object['app_id'], namespace=json_object['namespace'])
@@ -250,6 +246,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         )
         request_id = db_query(client_calls_sql, post_tuple)[0]
 
+        log("INFO","Issueing snowplow call with Request ID {}.".format(request_id))
         call_snowplow(request_id, json_object)
 
 # if db_query("SELECT 1 ;",None)[0] is not 1:

@@ -73,7 +73,7 @@ objects:
             - name: SP_ENDPOINT_TEST
               value: spm.gov.bc.ca
             - name: SP_ENDPOINT_PROD
-              value: spt.apps.gov.bc.ca
+              value: ca-bc-gov-main.collector.snplow.net
           name: app
           imagePullPolicy: Always
           ports:
