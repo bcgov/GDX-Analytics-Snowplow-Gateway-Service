@@ -70,6 +70,10 @@ objects:
                   name: ${NAME}-pgsql${SUFFIX}
             - name: DB_HOSTNAME
               value: ${NAME}-pgsql-master${SUFFIX}
+            - name: SP_ENDPOINT_TEST
+              value: spm.gov.bc.ca
+            - name: SP_ENDPOINT_PROD
+              value: ca-bc-gov-main.collector.snplow.net
           name: app
           imagePullPolicy: Always
           ports:
