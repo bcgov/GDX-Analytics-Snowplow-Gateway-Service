@@ -216,11 +216,6 @@ objects:
         securityContext: {}
         serviceAccountName: ${NAME}${SUFFIX}
         terminationGracePeriodSeconds: 0
-        volumes:
-        - name: postgresql
-#          emptyDir: {}
-          persistentVolumeClaim:
-            claimName: postgresql
     updateStrategy:
       type: RollingUpdate
     volumeClaimTemplates:
