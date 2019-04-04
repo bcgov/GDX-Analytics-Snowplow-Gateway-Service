@@ -253,7 +253,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 #     log("ERROR","There is a problem querying the database.")
 #     sys.exit(1)
 
-print("\nGDX Analytics as a Service\n===")
+print("\nGDX Analytics as a Service - Test\n===")
 httpd = HTTPServer((address, port), RequestHandler)
 log("INFO","Listening for POST requests to {} on port {}.".format(address,port))
 httpd.serve_forever()
