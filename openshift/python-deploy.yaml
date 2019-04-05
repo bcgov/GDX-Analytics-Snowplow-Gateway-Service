@@ -147,6 +147,7 @@ objects:
     port:
       targetPort: 8080-tcp
     tls:
+      insecureEdgeTerminationPolicy: None
       termination: edge
     to:
       kind: Service
