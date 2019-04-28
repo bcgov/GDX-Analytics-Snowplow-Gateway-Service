@@ -97,7 +97,7 @@ objects:
     name: ${NAME}${SUFFIX}
   spec:
     podManagementPolicy: OrderedReady
-    replicas: 3
+    replicas: 5
     revisionHistoryLimit: 10
     selector:
       matchLabels:
@@ -330,14 +330,14 @@ parameters:
     resides.
   displayName: ImageStream Namespace
   name: IMAGE_STREAM_NAMESPACE
-  value: "openshift"
+  value: "bcgov"
 - name: IMAGE_STREAM_TAG
   description: Patroni ImageTag
   value: patroni:v10-stable
 - description: The size of the persistent volume to create.
   displayName: Persistent Volume Size
   name: PVC_SIZE
-  value: 1Gi
+  value: 10Gi
 - name: STORAGE_CLASS
   value: gluster-block
 - name: IMAGE_REGISTRY
