@@ -138,8 +138,9 @@ objects:
 - apiVersion: v1
   kind: Route
   metadata:
-    # restrict networking traffic to the BCGov OCP CIDR range
-    haproxy.router.openshift.io/ip_whitelist: 142.34.143.128/26
+    annotations:
+      # restrict networking traffic to the BCGov OCP CIDR range
+      haproxy.router.openshift.io/ip_whitelist: 142.34.143.128/26
     creationTimestamp: null
     name: ${NAME}${SUFFIX}
   spec:
