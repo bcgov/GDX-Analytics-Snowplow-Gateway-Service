@@ -92,7 +92,7 @@ def binets_formula(n):
     return F_n
 
 def call_snowplow(request_id,json_object):
-    
+
     # Use the global emitter and tracker dicts
     global e
     global t
@@ -119,7 +119,7 @@ def call_snowplow(request_id,json_object):
         )
         snowplow_id = db_query(snowplow_calls_sql, snowplow_tuple)[0]
         log("INFO","snowplow call table insertion PASSED on request_id: {} and snowplow_id: {}.".format(request_id, snowplow_id))
-    
+
     # callback for failed calls
     failed_try = 0
     def on_failure(successfully_sent_count, failed_events):
@@ -131,7 +131,7 @@ def call_snowplow(request_id,json_object):
         sleep_time = binets_formula(failed_try)
         #log("INFO","Emitter call FAILED on request_id {} on try {}. Seconds until re-attempt: {}.".format(request_id,failed_try,sleep_time))
         log("INFO","Emitter call FAILED on request_id {} on try {}. No re-attempt will be made.".format(request_id,failed_try))
-        
+
         # Leaving this sleep delay until inputting after a failed event is ready
         #sleep(sleep_time)
 
@@ -154,7 +154,7 @@ def call_snowplow(request_id,json_object):
             log("INFO","snowplow call table insertion PASSED on request_id: {} and snowplow_id: {}.".format(request_id, snowplow_id))
             # Re-attempt the event call by inputting it back to the emitter
             #e[tracker_identifier].input(event)
-    
+
     tracker_identifier = json_object['env'] + "-" + json_object['namespace'] + "-" + json_object['app_id']
     log("DEBUG","New request with tracker_identifier {}".format(tracker_identifier))
 
@@ -176,7 +176,7 @@ def call_snowplow(request_id,json_object):
     event = SelfDescribingJson(json_object['event_data_json']['schema'], json_object['event_data_json']['data'])
     # Build contexts
     # TODO: add error checking
-    contexts = [] 
+    contexts = []
     for context in json_object['event_data_json']['contexts']:
         contexts.append(SelfDescribingJson(context['schema'], context['data']))
 
@@ -187,8 +187,12 @@ def call_snowplow(request_id,json_object):
 class RequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         ip_address = self.client_address[0]
+        headers = self.headers
         length = int(self.headers['Content-Length'])
         post_data = self.rfile.read(length).decode('utf-8')
+
+        log("INFO","IP: {}".format(ip_address))
+        log("INFO","HEADERS: {}".format(self.headers))
 
         # Test that the post_data is JSON
         try:
@@ -201,7 +205,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             post_tuple = (ip_address,response_code,post_data,None,None,None,None,None)
             request_id = db_query(client_calls_sql,post_tuple)[0]
             return
-            
+
         # Test that the JSON matches the expeceted schema
         try:
             jsonschema.validate(json_object, post_schema)
