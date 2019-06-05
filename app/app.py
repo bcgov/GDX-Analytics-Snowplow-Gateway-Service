@@ -13,6 +13,7 @@ import signal
 import sys
 import json
 import os
+import ssl
 
 #log level
 INFO=True
@@ -260,4 +261,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 print("\nGDX Analytics as a Service\n===")
 httpd = HTTPServer((address, port), RequestHandler)
 log("INFO","Listening for POST requests to {} on port {}.".format(address,port))
+httpd.socket = ssl.wrap_socket(httpd.socket,
+        keyfile="server.key",
+        certfile='server.crt', server_side=True)
 httpd.serve_forever()
