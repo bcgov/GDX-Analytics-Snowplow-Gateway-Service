@@ -74,7 +74,7 @@ objects:
       sourceStrategy:
         from:
           kind: ImageStreamTag
-          name: python:3.6-1-41
+          name: python:3.6-1-51
       type: Source
     triggers:
     - imageChange: {}
