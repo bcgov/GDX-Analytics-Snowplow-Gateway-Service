@@ -77,7 +77,7 @@ objects:
           name: app
           imagePullPolicy: Always
           ports:
-          - containerPort: 8080
+          - containerPort: 8443
             protocol: TCP
           resources:
             requests:
@@ -86,6 +86,14 @@ objects:
             limits:
               cpu: 80m
               memory: 96Mi
+          volumeMounts:
+          - mountPath: /etc/x509/https
+            name: app-x509-https-volume
+            readOnly: true
+        volumes:
+        - name: app-x509-https-volume
+          secret:
+            secretName: ${NAME}-x509-https-secret${SUFFIX}
     test: false
     triggers:
     - type: ConfigChange
@@ -123,14 +131,15 @@ objects:
   metadata:
     annotations:
       openshift.io/generated-by: OpenShiftNewApp
+      service.alpha.openshift.io/serving-cert-secret-name: ${NAME}-x509-https-secret${SUFFIX}
     creationTimestamp: null
     name: ${NAME}${SUFFIX}
   spec:
     ports:
-    - name: 8080-tcp
-      port: 8080
+    - name: 8443-tcp
+      port: 8443
       protocol: TCP
-      targetPort: 8080
+      targetPort: 8443
     selector:
       deploymentconfig: ${NAME}${SUFFIX}
   status:
@@ -147,10 +156,10 @@ objects:
     host: ${HOST}
     path: ""
     port:
-      targetPort: 8080-tcp
+      targetPort: 8443-tcp
     tls:
       insecureEdgeTerminationPolicy: None
-      termination: edge
+      termination: reencrypt
     to:
       kind: Service
       name: ${NAME}${SUFFIX}

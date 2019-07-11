@@ -40,7 +40,7 @@ user = os.getenv('DB_USERNAME')
 password = os.getenv('DB_PASSWORD')
 
 address = '0.0.0.0'
-port = 8080
+port = 8443
 
 # set up dicts to track emitters and trackers
 e = {}
@@ -260,4 +260,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 print("\nGDX Analytics as a Service\n===")
 httpd = HTTPServer((address, port), RequestHandler)
 log("INFO","Listening for POST requests to {} on port {}.".format(address,port))
+httpd.socket = ssl.wrap_socket(httpd.socket,
+        keyfile="/etc/x509/https/tls.key",
+        certfile='/etc/x509/https/tls.crt', server_side=True)
 httpd.serve_forever()
