@@ -186,6 +186,12 @@ def call_snowplow(request_id,json_object):
     t[tracker_identifier].track_self_describing_event(event, contexts, tstamp=json_object['dvce_created_tstamp'])
 
 class RequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        response_code = 501
+        self.send_response(response_code)
+        self.send_header('Content-type', 'text/plain')
+        self.end_headers()
+
     def do_POST(self):
         ip_address = self.client_address[0]
         headers = self.headers
