@@ -40,6 +40,7 @@ signal.signal(signal.SIGINT, signal_handler)
 host = os.getenv('DB_HOSTNAME')
 name = os.getenv('DB_NAME')
 user = os.getenv('DB_USERNAME')
+cert_path = os.getenv('SERVING_CERT_PATH')
 password = os.getenv('DB_PASSWORD')
 
 address = '0.0.0.0'
@@ -187,6 +188,7 @@ def call_snowplow(request_id,json_object):
     # TODO: add error checking
     t[tracker_identifier].track_self_describing_event(event, contexts, tstamp=json_object['dvce_created_tstamp'])
 
+
 class RequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         ip_address = self.client_address[0]
@@ -268,6 +270,7 @@ httpd = ThreadedHTTPServer((address, port), RequestHandler)
 log("INFO","Listening for POST requests to {} on port {}.".format(address,port))
 httpd.socket = ssl.wrap_socket(
     httpd.socket,
-    keyfile="/etc/x509/https/tls.key",
-    certfile='/etc/x509/https/tls.crt', server_side=True)
+    keyfile="{cert_path}/tls.key".format(cert_path=cert_path),
+    certfile='{cert_path}/tls.crt'.format(cert_path=cert_path),
+    server_side=True)
 httpd.serve_forever()

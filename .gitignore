@@ -7,5 +7,5 @@ output
 # virtual environment for local testing
 app/venv*
 
-# ssl artifacts
-app/server.*
+# tls artifacts
+app/tls.*

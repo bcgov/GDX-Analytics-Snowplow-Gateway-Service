@@ -74,6 +74,8 @@ objects:
               value: spm.gov.bc.ca
             - name: SP_ENDPOINT_PROD
               value: ca-bc-gov-main.collector.snplow.net
+            - name: SERVING_CERT_PATH
+              value: /etc/x509/https
           name: app
           imagePullPolicy: Always
           ports:
