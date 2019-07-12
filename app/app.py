@@ -2,7 +2,7 @@ from multiprocessing import Process
 from snowplow_tracker import Subject, Tracker, AsyncEmitter
 from snowplow_tracker import SelfDescribingJson
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from SocketServer import ThreadingMixIn
+from socketserver import ThreadingMixIn
 from jsonschema import validate
 from datetime import datetime
 from time import sleep
