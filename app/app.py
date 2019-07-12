@@ -1,11 +1,13 @@
 from multiprocessing import Process
 from snowplow_tracker import Subject, Tracker, AsyncEmitter
 from snowplow_tracker import SelfDescribingJson
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
+from SocketServer import ThreadingMixIn
 from jsonschema import validate
 from datetime import datetime
 from time import sleep
 import jsonschema
+import threading
 import psycopg2
 import logging
 import urllib
@@ -186,12 +188,6 @@ def call_snowplow(request_id,json_object):
     t[tracker_identifier].track_self_describing_event(event, contexts, tstamp=json_object['dvce_created_tstamp'])
 
 class RequestHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        response_code = 501
-        self.send_response(response_code)
-        self.send_header('Content-type', 'text/plain')
-        self.end_headers()
-
     def do_POST(self):
         ip_address = self.client_address[0]
         headers = self.headers
@@ -264,10 +260,14 @@ class RequestHandler(BaseHTTPRequestHandler):
 #     log("ERROR","There is a problem querying the database.")
 #     sys.exit(1)
 
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    pass
+
 print("\nGDX Analytics as a Service\n===")
-httpd = HTTPServer((address, port), RequestHandler)
+httpd = ThreadedHTTPServer((address, port), RequestHandler)
 log("INFO","Listening for POST requests to {} on port {}.".format(address,port))
-httpd.socket = ssl.wrap_socket(httpd.socket,
-        keyfile="/etc/x509/https/tls.key",
-        certfile='/etc/x509/https/tls.crt', server_side=True)
+httpd.socket = ssl.wrap_socket(
+    httpd.socket,
+    keyfile="/etc/x509/https/tls.key",
+    certfile='/etc/x509/https/tls.crt', server_side=True)
 httpd.serve_forever()
