@@ -337,7 +337,7 @@ parameters:
 - description: The size of the persistent volume to create.
   displayName: Persistent Volume Size
   name: PVC_SIZE
-  value: 5Gi
+  value: 10Gi
 - name: STORAGE_CLASS
   value: gluster-block
 - name: IMAGE_REGISTRY
