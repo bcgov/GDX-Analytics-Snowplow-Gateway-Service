@@ -1,11 +1,13 @@
 from multiprocessing import Process
 from snowplow_tracker import Subject, Tracker, AsyncEmitter
 from snowplow_tracker import SelfDescribingJson
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from socketserver import ThreadingMixIn
 from jsonschema import validate
 from datetime import datetime
 from time import sleep
 import jsonschema
+import threading
 import psycopg2
 import logging
 import urllib
@@ -13,6 +15,7 @@ import signal
 import sys
 import json
 import os
+import ssl
 
 #log level
 INFO=True
@@ -37,10 +40,11 @@ signal.signal(signal.SIGINT, signal_handler)
 host = os.getenv('DB_HOSTNAME')
 name = os.getenv('DB_NAME')
 user = os.getenv('DB_USERNAME')
+cert_path = os.getenv('SERVING_CERT_PATH')
 password = os.getenv('DB_PASSWORD')
 
 address = '0.0.0.0'
-port = 8080
+port = 8443
 
 # set up dicts to track emitters and trackers
 e = {}
@@ -184,6 +188,7 @@ def call_snowplow(request_id,json_object):
     # TODO: add error checking
     t[tracker_identifier].track_self_describing_event(event, contexts, tstamp=json_object['dvce_created_tstamp'])
 
+
 class RequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         ip_address = self.client_address[0]
@@ -257,7 +262,15 @@ class RequestHandler(BaseHTTPRequestHandler):
 #     log("ERROR","There is a problem querying the database.")
 #     sys.exit(1)
 
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    pass
+
 print("\nGDX Analytics as a Service\n===")
-httpd = HTTPServer((address, port), RequestHandler)
+httpd = ThreadedHTTPServer((address, port), RequestHandler)
 log("INFO","Listening for POST requests to {} on port {}.".format(address,port))
+httpd.socket = ssl.wrap_socket(
+    httpd.socket,
+    keyfile="{cert_path}/tls.key".format(cert_path=cert_path),
+    certfile='{cert_path}/tls.crt'.format(cert_path=cert_path),
+    server_side=True)
 httpd.serve_forever()
