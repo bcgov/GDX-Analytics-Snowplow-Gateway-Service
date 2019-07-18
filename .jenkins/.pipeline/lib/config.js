@@ -15,4 +15,4 @@ const phases = {
    prod: {namespace:'8gsiqa-tools' , name: NAME, phase: 'prod' , changeId:changeId, suffix: '-prod'             , instance: `${NAME}-prod`             , tag:`prod-${version}`}
 }
 
-module.exports = exports = phases
+module.exports = exports = {phases, options};

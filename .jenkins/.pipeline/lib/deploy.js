@@ -7,7 +7,7 @@ const options= require('pipeline-cli').Util.parseArguments()
 module.exports = (settings)=>{
   const phase=options.env
   const changeId = phases[phase].changeId
-  const oc=new OpenShiftClientX({'namespace':phases[phase].namespace});
+  const oc=new OpenShiftClientX(Object.assign({'namespace':phases[phase].namespace}, options));
   var objects = []
 
   const templatesLocalBaseUrl =oc.toFileUrl(path.resolve(__dirname, '../../openshift'))
