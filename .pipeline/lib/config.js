@@ -11,4 +11,4 @@ const phases = {
    prod: {namespace:'8gsiqa-prod' , name: `${name}`, phase: 'prod' , changeId:changeId, suffix: ''                  , instance: `${name}-prod`             , version:`${version}-${changeId}`, tag:`prod-${version}`             , host:'caps.pathfinder.bcgov'}
 }
 
-module.exports = exports = phases
+module.exports = exports = {phases, options};

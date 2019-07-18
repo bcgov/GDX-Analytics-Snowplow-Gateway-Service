@@ -3,11 +3,11 @@ const {OpenShiftClientX} = require('pipeline-cli')
 const path = require('path');
 
 module.exports = (settings)=>{
-  const phases=settings.phases
-  const oc=new OpenShiftClientX({'namespace':phases.build.namespace});
+  const phases = settings.phases
+  const options = settings.options
+  const oc=new OpenShiftClientX(Object.assign({'namespace':phases.build.namespace}, options));
   const phase='build'
-  var objects = []
-
+  let objects = []
   const templatesLocalBaseUrl =oc.toFileUrl(path.resolve(__dirname, '../../openshift'))
 
   objects = objects.concat(oc.processDeploymentTemplate(`${templatesLocalBaseUrl}/jenkins.bc.json`, {

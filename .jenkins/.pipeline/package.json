@@ -13,11 +13,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/cvarjao-o/hello-world.git"
+    "url": "git+https://github.com/bcgov/GDX-Analytics-OpenShift-Snowplow-Gateway-Service.git"
   },
   "author": "",
   "license": "Apache-2.0",
   "dependencies": {
-    "pipeline-cli": "git+https://github.com/bcdevops/pipeline-cli.git#c1a1811a0949a3ece253ae8293f3baaea7733f28"
+    "pipeline-cli": "git+https://github.com/BCDevOps/pipeline-cli.git#v1.1"
   }
 }
