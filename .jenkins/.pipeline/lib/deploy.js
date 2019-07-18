@@ -1,16 +1,17 @@
 'use strict';
 const {OpenShiftClientX} = require('pipeline-cli')
 const path = require('path');
-const phases = require('./config')
-const options= require('pipeline-cli').Util.parseArguments()
+// const phases = require('./config')
+// const options= require('pipeline-cli').Util.parseArguments()
 
 module.exports = (settings)=>{
+  const phases = settings.phases
+  const options= settings.options
   const phase=options.env
   const changeId = phases[phase].changeId
   const oc=new OpenShiftClientX(Object.assign({'namespace':phases[phase].namespace}, options));
-  var objects = []
-
   const templatesLocalBaseUrl =oc.toFileUrl(path.resolve(__dirname, '../../openshift'))
+  var objects = []
 
   objects = objects.concat(oc.processDeploymentTemplate(`${templatesLocalBaseUrl}/jenkins.dc.json`, {
     'param':{
