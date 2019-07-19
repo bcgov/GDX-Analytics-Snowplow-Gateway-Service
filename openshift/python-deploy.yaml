@@ -71,9 +71,15 @@ objects:
             - name: DB_HOSTNAME
               value: ${NAME}-pgsql-master${SUFFIX}
             - name: SP_ENDPOINT_TEST
-              value: spm.gov.bc.ca
+              valueFrom:
+                configMapKeyRef:
+                  key: SP_ENDPOINT_TEST
+                  name: snowplow-endpoints
             - name: SP_ENDPOINT_PROD
-              value: ca-bc-gov-main.collector.snplow.net
+              valueFrom:
+                configMapKeyRef:
+                  key: SP_ENDPOINT_PROD
+                  name: snowplow-endpoints
             - name: SERVING_CERT_PATH
               value: /etc/x509/https
           name: app
