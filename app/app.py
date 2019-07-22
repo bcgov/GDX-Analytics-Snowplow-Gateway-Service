@@ -70,7 +70,7 @@ def single_response_query(sql, execute_tuple, all=False):
     fetch = None
     try:
         conn = threaded_postgreSQL_pool.getconn()
-        if(ps_connection):
+        if(conn):
             cur = conn.cursor()
             cur.execute(sql, execute_tuple)
             if all:
@@ -80,7 +80,7 @@ def single_response_query(sql, execute_tuple, all=False):
             conn.commit()
             cur.close()
     except (Exception, psycopg2.DatabaseError) as e:
-        log("ERROR", "Error while connecting to PostgreSQL {}".format(e))
+        log("ERROR", "Error retreiving from connection pool {}".format(e))
     finally:
         if conn is not None:
             # Release the connection object and send it back to the pool
