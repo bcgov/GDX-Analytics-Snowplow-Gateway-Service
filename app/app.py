@@ -51,9 +51,6 @@ port = 8443
 e = {}
 t = {}
 
-# Postgres
-connect_string = "host={host} dbname={dbname} user={user} password={password}".format(host=host,dbname=name,user=user,password=password)
-
 # Database Query Strings
 # Timestamps are in ms and their calculation for insertion as a datetime is handled by postgres, which natively regards datetimes as being in seconds.
 client_calls_sql = """INSERT INTO caps.client_calls(received_timestamp,ip_address,response_code,raw_data,environment,namespace,app_id,device_created_timestamp,event_data_json)
