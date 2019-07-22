@@ -9,6 +9,7 @@ from time import sleep
 import jsonschema
 import threading
 import psycopg2
+from psycopg2 import pool
 import logging
 import urllib
 import signal
@@ -17,9 +18,9 @@ import json
 import os
 import ssl
 
-#log level
-INFO=True
-DEBUG=True
+# log level
+INFO = True
+DEBUG = True
 
 def logtime():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")[:-3]
@@ -38,7 +39,7 @@ signal.signal(signal.SIGINT, signal_handler)
 
 # Retrieve env variables
 host = os.getenv('DB_HOSTNAME')
-name = os.getenv('DB_NAME')
+database = os.getenv('DB_NAME')
 user = os.getenv('DB_USERNAME')
 cert_path = os.getenv('SERVING_CERT_PATH')
 password = os.getenv('DB_PASSWORD')
@@ -49,9 +50,6 @@ port = 8443
 # set up dicts to track emitters and trackers
 e = {}
 t = {}
-
-# Postgres
-connect_string = "host={host} dbname={dbname} user={user} password={password}".format(host=host,dbname=name,user=user,password=password)
 
 # Database Query Strings
 # Timestamps are in ms and their calculation for insertion as a datetime is handled by postgres, which natively regards datetimes as being in seconds.
@@ -64,29 +62,29 @@ snowplow_calls_sql = """INSERT INTO caps.snowplow_calls(request_id, sent_timesta
 # POST body JSON validation schema
 post_schema = json.load(open('post_schema.json', 'r'))
 
-# Create a connection to postgres, and execute a query
-# Returns the first column for that insertion, which was the postgres generated identifier
-def db_query(sql,execute_tuple,all=False):
+
+# Use getconn() method to Get Connection from connection pool
+# Returns the value of the generated identifier (index)
+def single_response_query(sql, execute_tuple, all=False):
     conn = None
     fetch = None
     try:
-        conn = psycopg2.connect(connect_string)
-        if conn.closed is not 0:
-            log("ERROR","Failed to connect to database; check that postgres is running and connection variables are set correctly.")
-            sys.exit(1)
-        cur = conn.cursor()
-        cur.execute(sql,execute_tuple)
-        if all:
-            fetch = cur.fetchall()
-        else:
-            fetch = cur.fetchone()
-        conn.commit()
-        cur.close()
-    except (Exception, psycopg2.DatabaseError) as error:
-        print(error)
+        conn = threaded_postgreSQL_pool.getconn()
+        if(conn):
+            cur = conn.cursor()
+            cur.execute(sql, execute_tuple)
+            if all:
+                fetch = cur.fetchall()
+            else:
+                fetch = cur.fetchone()
+            conn.commit()
+            cur.close()
+    except (Exception, psycopg2.DatabaseError) as e:
+        log("ERROR", "Error retreiving from connection pool {}".format(e))
     finally:
         if conn is not None:
-            conn.close()
+            # Release the connection object and send it back to the pool
+            threaded_postgreSQL_pool.putconn(conn)
     return fetch
 
 # Used for on_failure retry backoff; returns the number at index n in the Fibonacci sequence
@@ -109,7 +107,7 @@ def call_snowplow(request_id,json_object):
         log("INFO","Emitter call PASSED on request_id: {}.".format(request_id))
         backoff_outside_the_scope = 1 # reset the backoff if this is successful
         # get previous try number, choose larger of 0 or query result and add 1
-        try_number = max(i for i in [0,db_query("SELECT MAX(try_number) FROM caps.snowplow_calls WHERE request_id = %s ;", (request_id, ))[0]] if i is not None) + 1
+        try_number = max(i for i in [0,single_response_query("SELECT MAX(try_number) FROM caps.snowplow_calls WHERE request_id = %s ;", (request_id, ))[0]] if i is not None) + 1
         log("DEBUG","Try number: {}".format(try_number))
         snowplow_tuple = (
             str(request_id),
@@ -121,7 +119,7 @@ def call_snowplow(request_id,json_object):
             json_object['dvce_created_tstamp'],
             json.dumps(json_object['event_data_json'])
         )
-        snowplow_id = db_query(snowplow_calls_sql, snowplow_tuple)[0]
+        snowplow_id = single_response_query(snowplow_calls_sql, snowplow_tuple)[0]
         log("INFO","snowplow call table insertion PASSED on request_id: {} and snowplow_id: {}.".format(request_id, snowplow_id))
 
     # callback for failed calls
@@ -142,7 +140,7 @@ def call_snowplow(request_id,json_object):
         # failed_events should always contain only one event, because ASyncEmitter has a buffer size of 1
         for event in failed_events:
             # get previous try number, choose larger of 0 or query result and add 1
-            # try_number = max(i for i in [0,db_query("SELECT MAX(try_number) FROM caps.snowplow_calls WHERE request_id = %s ;", (request_id, ))[0]] if i is not None) + 1
+            # try_number = max(i for i in [0,single_response_query("SELECT MAX(try_number) FROM caps.snowplow_calls WHERE request_id = %s ;", (request_id, ))[0]] if i is not None) + 1
             # log("DEBUG","Try number: {}".format(try_number))
             snowplow_tuple = (
                 str(request_id),
@@ -154,7 +152,7 @@ def call_snowplow(request_id,json_object):
                 json_object['dvce_created_tstamp'],
                 json.dumps(json_object['event_data_json'])
             )
-            snowplow_id = db_query(snowplow_calls_sql, snowplow_tuple)[0]
+            snowplow_id = single_response_query(snowplow_calls_sql, snowplow_tuple)[0]
             log("INFO","snowplow call table insertion PASSED on request_id: {} and snowplow_id: {}.".format(request_id, snowplow_id))
             # Re-attempt the event call by inputting it back to the emitter
             #e[tracker_identifier].input(event)
@@ -208,7 +206,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.send_header('Content-type', 'text/plain')
             self.end_headers()
             post_tuple = (ip_address,response_code,post_data,None,None,None,None,None)
-            request_id = db_query(client_calls_sql,post_tuple)[0]
+            request_id = single_response_query(client_calls_sql,post_tuple)[0]
             return
 
         # Test that the JSON matches the expeceted schema
@@ -220,7 +218,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.send_header('Content-type', 'text/plain')
             self.end_headers()
             post_tuple = (ip_address,response_code,post_data,None,None,None,None,None)
-            request_id = db_query(client_calls_sql,post_tuple)[0]
+            request_id = single_response_query(client_calls_sql,post_tuple)[0]
             return
 
         # Test that the input device_created_timestamp is in ms
@@ -232,9 +230,8 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.send_header('Content-type', 'text/plain')
             self.end_headers()
             post_tuple = (ip_address,response_code,post_data,None,None,None,None,None)
-            request_id = db_query(client_calls_sql,post_tuple)[0]
+            request_id = single_response_query(client_calls_sql,post_tuple)[0]
             return
-
 
         # Input POST is JSON and validates to schema
         response_code = 200
@@ -252,22 +249,34 @@ class RequestHandler(BaseHTTPRequestHandler):
             json_object['app_id'],
             json_object['dvce_created_tstamp'],
             json.dumps(json_object['event_data_json'])
-        )
-        request_id = db_query(client_calls_sql, post_tuple)[0]
+            )
+        request_id = single_response_query(client_calls_sql, post_tuple)[0]
 
-        log("INFO","Issueing snowplow call with Request ID {}.".format(request_id))
+        log("INFO", "Issue Snowplow call: Request ID {}.".format(request_id))
         call_snowplow(request_id, json_object)
 
-# if db_query("SELECT 1 ;",None)[0] is not 1:
+# if single_response_query("SELECT 1 ;",None)[0] is not 1:
 #     log("ERROR","There is a problem querying the database.")
 #     sys.exit(1)
+
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     pass
 
+
 print("\nGDX Analytics as a Service\n===")
+
+# Create a threaded PostgreSQL connection pool
+try:
+    threaded_postgreSQL_pool = psycopg2.pool.ThreadedConnectionPool(
+        5, 20, user=user, password=password, host=host, database=database)
+    if(threaded_postgreSQL_pool):
+        log("INFO", "Connection pool created successfully")
+except (Exception, psycopg2.DatabaseError) as e:
+    log("ERROR", "Error while connecting to PostgreSQL {}".format(e))
+
 httpd = ThreadedHTTPServer((address, port), RequestHandler)
-log("INFO","Listening for POST requests to {} on port {}.".format(address,port))
+log("INFO", "Listening for POSTs to {} on port {}.".format(address, port))
 httpd.socket = ssl.wrap_socket(
     httpd.socket,
     keyfile="{cert_path}/tls.key".format(cert_path=cert_path),
