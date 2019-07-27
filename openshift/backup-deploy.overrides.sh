@@ -5,11 +5,11 @@
 # ========================================================================
 
 CONFIG_MAP_NAME=backup-conf
-SOURCE_FILE=../config/backup.conf
+SOURCE_FILE=./config/backup.conf
 OUTPUT_FORMAT=json
 OUTPUT_FILE=backup-conf-configmap_DeploymentConfig.json
 
-generateConfigMap() {  
+generateConfigMap() {
   _config_map_name=${1}
   _source_file=${2}
   _output_format=${3}
@@ -83,13 +83,12 @@ initialize
 generateConfigMap "${CONFIG_MAP_NAME}" "${SOURCE_FILE}" "${OUTPUT_FORMAT}" "${OUTPUT_FILE}"
 
 # Get the FTP URL and credentials
-readParameter "FTP_URL - Please provide the FTP server URL.  If left blank, the FTP backup feature will be disabled:" FTP_URL "" 
-readParameter "FTP_USER - Please provide the FTP user name:" FTP_USER "" 
-readParameter "FTP_PASSWORD - Please provide the FTP password:" FTP_PASSWORD "" 
+readParameter "FTP_URL - Please provide the FTP server URL.  If left blank, the FTP backup feature will be disabled:" FTP_URL ""
+readParameter "FTP_USER - Please provide the FTP user name:" FTP_USER ""
+readParameter "FTP_PASSWORD - Please provide the FTP password:" FTP_PASSWORD ""
 
 # Get the webhook URL
-readParameter "WEBHOOK_URL - Please provide the webhook endpoint URL.  If left blank, the webhook integration feature will be disabled:" WEBHOOK_URL "" 
+readParameter "WEBHOOK_URL - Please provide the webhook endpoint URL.  If left blank, the webhook integration feature will be disabled:" WEBHOOK_URL ""
 
 SPECIALDEPLOYPARMS="--param-file=${_overrideParamFile}"
 echo ${SPECIALDEPLOYPARMS}
-
