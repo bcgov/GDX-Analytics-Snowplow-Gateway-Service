@@ -7,8 +7,10 @@ NAME=backup
 SOURCE_IMAGE_NAME=backup
 IMAGE_NAMESPACE=<tools_projectname>
 TAG_NAME=<tag>  # latest, or whatever was tagged in step #4
-# deployment backup details and s trategy
+# deployment backup details and strategy
 # database access
+DATABASE_SERVICE_NAME=caps-pgsql  # may need additional tagging per namespace
+POSTGRESQL_DATABASE=caps
 DATABASE_DEPLOYMENT_NAME=<database-secret-name>
 DATABASE_USER_KEY_NAME=<db-username-key>  # the database secret's username key
 DATABASE_PASSWORD_KEY_NAME=<db-password-key>  # the database secret's password key
