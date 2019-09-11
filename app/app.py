@@ -197,72 +197,77 @@ def call_snowplow(request_id, json_object):
 
 class RequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
-        ip_address = self.client_address[0]
-        headers = self.headers
-        length = int(self.headers['Content-Length'])
-        post_data = self.rfile.read(length).decode('utf-8')
-
-        logger.info("IP: {}".format(ip_address))
-        logger.info("HEADERS: {}".format(self.headers))
-
-        # Test that the post_data is JSON
+        # This Try/Except block intends to ignore a ConnectionResetError
+        # exception which is recurrent in this app when running on the OCP.
         try:
-            json_object = json.loads(post_data)
-        except (json.decoder.JSONDecodeError, ValueError):
-            response_code = 400
-            self.send_response(response_code, 'POST body is not parsable as JSON.')
+            ip_address = self.client_address[0]
+            headers = self.headers
+            length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(length).decode('utf-8')
+
+            logger.info("IP: {}".format(ip_address))
+            logger.info("HEADERS: {}".format(self.headers))
+
+            # Test that the post_data is JSON
+            try:
+                json_object = json.loads(post_data)
+            except (json.decoder.JSONDecodeError, ValueError):
+                response_code = 400
+                self.send_response(response_code, 'POST body is not parsable as JSON.')
+                self.send_header('Content-type', 'text/plain')
+                self.end_headers()
+                post_tuple = (ip_address,response_code,post_data,None,None,None,None,None)
+                request_id = single_response_query(client_calls_sql,post_tuple)[0]
+                return
+
+            # Test that the JSON matches the expeceted schema
+            try:
+                jsonschema.validate(json_object, post_schema)
+            except (jsonschema.ValidationError, jsonschema.SchemaError):
+                response_code = 400
+                self.send_response(response_code, 'POST JSON is not compliant with schema.')
+                self.send_header('Content-type', 'text/plain')
+                self.end_headers()
+                post_tuple = (ip_address,response_code,post_data,None,None,None,None,None)
+                request_id = single_response_query(client_calls_sql,post_tuple)[0]
+                return
+
+            # Test that the input device_created_timestamp is in ms
+            device_created_timestamp = json_object['dvce_created_tstamp']
+            if device_created_timestamp < 99999999999: # 11 digits, Sat Mar 03 1973 09:46:39 UTC
+                # it's too small to be in seconds
+                response_code = 400
+                self.send_response(response_code, 'Device Created Timestamp is not in milliseconds.')
+                self.send_header('Content-type', 'text/plain')
+                self.end_headers()
+                post_tuple = (ip_address,response_code,post_data,None,None,None,None,None)
+                request_id = single_response_query(client_calls_sql,post_tuple)[0]
+                return
+
+            # Input POST is JSON and validates to schema
+            response_code = 200
+            self.send_response(response_code)
             self.send_header('Content-type', 'text/plain')
             self.end_headers()
-            post_tuple = (ip_address,response_code,post_data,None,None,None,None,None)
-            request_id = single_response_query(client_calls_sql,post_tuple)[0]
+
+            # insert the parsed post body into the client_calls table
+            post_tuple = (
+                ip_address,
+                response_code,
+                post_data,
+                json_object['env'],
+                json_object['namespace'],
+                json_object['app_id'],
+                json_object['dvce_created_tstamp'],
+                json.dumps(json_object['event_data_json'])
+                )
+            request_id = single_response_query(client_calls_sql, post_tuple)[0]
+
+            logger.info("Issue Snowplow call: Request ID {}.".format(request_id))
+            call_snowplow(request_id, json_object)
             return
-
-        # Test that the JSON matches the expeceted schema
-        try:
-            jsonschema.validate(json_object, post_schema)
-        except (jsonschema.ValidationError, jsonschema.SchemaError):
-            response_code = 400
-            self.send_response(response_code, 'POST JSON is not compliant with schema.')
-            self.send_header('Content-type', 'text/plain')
-            self.end_headers()
-            post_tuple = (ip_address,response_code,post_data,None,None,None,None,None)
-            request_id = single_response_query(client_calls_sql,post_tuple)[0]
+        except ConnectionResetError:
             return
-
-        # Test that the input device_created_timestamp is in ms
-        device_created_timestamp = json_object['dvce_created_tstamp']
-        if device_created_timestamp < 99999999999: # 11 digits, Sat Mar 03 1973 09:46:39 UTC
-            # it's too small to be in seconds
-            response_code = 400
-            self.send_response(response_code, 'Device Created Timestamp is not in milliseconds.')
-            self.send_header('Content-type', 'text/plain')
-            self.end_headers()
-            post_tuple = (ip_address,response_code,post_data,None,None,None,None,None)
-            request_id = single_response_query(client_calls_sql,post_tuple)[0]
-            return
-
-        # Input POST is JSON and validates to schema
-        response_code = 200
-        self.send_response(response_code)
-        self.send_header('Content-type', 'text/plain')
-        self.end_headers()
-
-        # insert the parsed post body into the client_calls table
-        post_tuple = (
-            ip_address,
-            response_code,
-            post_data,
-            json_object['env'],
-            json_object['namespace'],
-            json_object['app_id'],
-            json_object['dvce_created_tstamp'],
-            json.dumps(json_object['event_data_json'])
-            )
-        request_id = single_response_query(client_calls_sql, post_tuple)[0]
-
-        logger.info("Issue Snowplow call: Request ID {}.".format(request_id))
-        call_snowplow(request_id, json_object)
-        return
 
 # if single_response_query("SELECT 1 ;",None)[0] is not 1:
 #     log("ERROR","There is a problem querying the database.")
