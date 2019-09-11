@@ -196,14 +196,6 @@ def call_snowplow(request_id, json_object):
 
 
 class RequestHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        try:
-            self.send_response(200)
-            self.send_header("Content-type", "text/html")
-            self.end_headers()
-        except ConnectionResetError:
-            pass
-
     def do_POST(self):
         ip_address = self.client_address[0]
         headers = self.headers
@@ -313,7 +305,7 @@ try:
 except (Exception, psycopg2.DatabaseError) as e:
     logger.exception("Error while connecting to PostgreSQL")
 
-httpd = ThreadedHTTPServer((address, port), RequestHandler)
+httpd = HTTPServer((address, port), RequestHandler)
 logger.info("Listening for POSTs to {} on port {}.".format(address, port))
 httpd.socket = ssl.wrap_socket(
     httpd.socket,
