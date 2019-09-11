@@ -305,7 +305,7 @@ try:
 except (Exception, psycopg2.DatabaseError) as e:
     logger.exception("Error while connecting to PostgreSQL")
 
-httpd = HTTPServer((address, port), RequestHandler)
+httpd = ThreadedHTTPServer((address, port), RequestHandler)
 logger.info("Listening for POSTs to {} on port {}.".format(address, port))
 httpd.socket = ssl.wrap_socket(
     httpd.socket,
