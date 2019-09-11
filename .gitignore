@@ -9,3 +9,4 @@ app/venv*
 
 # tls artifacts
 app/tls.*
+app/app.log
