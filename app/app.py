@@ -196,6 +196,14 @@ def call_snowplow(request_id, json_object):
 
 
 class RequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        try:
+            self.send_response(200)
+            self.send_header("Content-type", "text/html")
+            self.end_headers()
+        except ConnectionResetError:
+            pass
+
     def do_POST(self):
         ip_address = self.client_address[0]
         headers = self.headers
