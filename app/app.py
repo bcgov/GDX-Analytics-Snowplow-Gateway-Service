@@ -308,9 +308,9 @@ except (Exception, psycopg2.DatabaseError) as e:
 
 httpd = ThreadedHTTPServer((address, port), RequestHandler)
 logger.info("Listening for TCP requests to {} on port {}.".format(address, port))
-# httpd.socket = ssl.wrap_socket(
-#     httpd.socket,
-#     keyfile="{cert_path}/tls.key".format(cert_path=cert_path),
-#     certfile='{cert_path}/tls.crt'.format(cert_path=cert_path),
-#     server_side=True)
+httpd.socket = ssl.wrap_socket(
+    httpd.socket,
+    keyfile="{cert_path}/tls.key".format(cert_path=cert_path),
+    certfile='{cert_path}/tls.crt'.format(cert_path=cert_path),
+    server_side=True)
 httpd.serve_forever()
