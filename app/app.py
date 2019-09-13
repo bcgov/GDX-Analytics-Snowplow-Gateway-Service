@@ -312,5 +312,6 @@ httpd.socket = ssl.wrap_socket(
     httpd.socket,
     keyfile="{cert_path}/tls.key".format(cert_path=cert_path),
     certfile='{cert_path}/tls.crt'.format(cert_path=cert_path),
+    ssl_version=ssl.PROTOCOL_TLSv1_2,
     server_side=True)
 httpd.serve_forever()
