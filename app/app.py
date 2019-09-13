@@ -196,14 +196,6 @@ def call_snowplow(request_id, json_object):
 
 
 class RequestHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        return
-
-    def do_HEAD(self):
-        self.send_response(200)
-        return
-
     def do_POST(self):
         ip_address = self.client_address[0]
         headers = self.headers
@@ -320,4 +312,7 @@ httpd.socket = ssl.wrap_socket(
     keyfile="{cert_path}/tls.key".format(cert_path=cert_path),
     certfile='{cert_path}/tls.crt'.format(cert_path=cert_path),
     server_side=True)
-httpd.serve_forever()
+try:
+    httpd.serve_forever()
+except:
+    pass
