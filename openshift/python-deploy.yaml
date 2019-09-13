@@ -177,7 +177,7 @@ objects:
       targetPort: 8443-tcp
     tls:
       insecureEdgeTerminationPolicy: None
-      termination: edge
+      termination: reencrypt
     to:
       kind: Service
       name: ${NAME}${SUFFIX}
