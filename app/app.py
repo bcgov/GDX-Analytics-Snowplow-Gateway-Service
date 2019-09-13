@@ -16,7 +16,7 @@ import signal
 import sys
 import json
 import os
-# import ssl
+import ssl
 
 # set up logging
 logger = logging.getLogger(__name__)
