@@ -167,7 +167,8 @@ objects:
   metadata:
     annotations:
       # restrict networking traffic to the BCGov OCP CIDR range
-      haproxy.router.openshift.io/ip_whitelist: 142.34.143.128/26
+      # and the vpn2.gov.bc.ca IP range
+      haproxy.router.openshift.io/ip_whitelist: 142.34.143.128/26 142.32.0.0/16
     creationTimestamp: null
     name: ${NAME}${SUFFIX}
   spec:
@@ -177,7 +178,7 @@ objects:
       targetPort: 8443-tcp
     tls:
       insecureEdgeTerminationPolicy: None
-      termination: reencrypt
+      termination: edge
     to:
       kind: Service
       name: ${NAME}${SUFFIX}
