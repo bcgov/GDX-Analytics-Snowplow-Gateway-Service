@@ -168,7 +168,7 @@ objects:
     annotations:
       # restrict networking traffic to the BCGov OCP CIDR range
       # and the vpn2.gov.bc.ca IP range
-      haproxy.router.openshift.io/ip_whitelist: 142.34.143.128/26 142.32.0.0/16 172.51.0.0/16
+      haproxy.router.openshift.io/ip_whitelist: 142.34.143.128/26 142.32.0.0/16 142.34.208.209
     creationTimestamp: null
     name: ${NAME}${SUFFIX}
   spec:
