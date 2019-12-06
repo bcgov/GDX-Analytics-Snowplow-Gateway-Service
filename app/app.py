@@ -216,11 +216,11 @@ def call_snowplow(request_id, json_object):
 
 
 class RequestHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
+    def do_GET(s):
         """Respond to a GET request."""
         logger.info("got GET request")
-        logger.info("IP: {}".format(self.client_address[0]))
-        logger.info("HEADERS: {}".format(self.headers))
+        logger.info("IP: {}".format(s.client_address[0]))
+        logger.info("HEADERS: {}".format(s.headers))
         s.send_response(200)
         s.send_header("Content-type", "text/html")
         s.end_headers()
