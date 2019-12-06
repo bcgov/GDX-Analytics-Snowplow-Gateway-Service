@@ -220,12 +220,12 @@ class RequestHandler(BaseHTTPRequestHandler):
         try:
             BaseHTTPRequestHandler.handle(self)
         except ConnectionResetError:
-            logging.info("something happened")
+            logger.info("something happened")
             pass
 
     def do_GET(self):
         """Respond to a GET request."""
-        logging.info("GET request,\nPath: %s\nHeaders:\n%s\n", str(self.path), str(self.headers))
+        logger.info("GET request,\nPath: %s\nHeaders:\n%s\n", str(self.path), str(self.headers))
         self.send_response(200)
         self.send_header("Content-type", "text/html")
         self.end_headers()
