@@ -216,6 +216,12 @@ def call_snowplow(request_id, json_object):
 
 
 class RequestHandler(BaseHTTPRequestHandler):
+    def handle(self):
+        try:
+            BaseHTTPRequestHandler.handle(self)
+        except SocketError:
+            pass
+
     def do_GET(self):
         """Respond to a GET request."""
         logging.info("GET request,\nPath: %s\nHeaders:\n%s\n", str(self.path), str(self.headers))
