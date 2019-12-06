@@ -220,6 +220,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         try:
             BaseHTTPRequestHandler.handle(self)
         except SocketError:
+            logger.info("something happened")
             pass
 
     def do_GET(self):
