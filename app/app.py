@@ -219,7 +219,7 @@ class RequestHandler(BaseHTTPRequestHandler):
     def handle(self):
         try:
             BaseHTTPRequestHandler.handle(self)
-        except SocketError:
+        except ConnectionResetError:
             logging.info("something happened")
             pass
 
