@@ -220,7 +220,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         try:
             BaseHTTPRequestHandler.handle(self)
         except ConnectionResetError:
-            logger.info("something happened")
+            logger.exception("There was a ConnectionResetError: ")
             pass
 
     def do_GET(self):
