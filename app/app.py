@@ -11,6 +11,8 @@ import sys
 import json
 import os
 
+from gunicorn.app.base import BaseApplication
+
 # set up logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -311,23 +313,29 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
         self.socket.listen(20)
 
 
-print("\nGDX Analytics as a Service\n===")
+def wsgi_handler(environ, start_response):
+    print('HANDLE REQUEST %s' % time.time())
+    start_response('200 OK', [('Content-Type','text/html')])
+    return [b"Hello World from standalone WSGI application!"]
 
-# Create a threaded PostgreSQL connection pool
-try:
-    threaded_postgreSQL_pool = pool.ThreadedConnectionPool(
-        minconn=5,
-        maxconn=20,
-        user=user,
-        password=password,
-        host=host,
-        database=database)
-    if(threaded_postgreSQL_pool):
-        logger.info("Connection pool created successfully")
-except (Exception, psycopg2.DatabaseError):
-    logger.exception("Error while connecting to PostgreSQL")
+class StandaloneApplication(BaseApplication):
+    def __init__(self, app, options=None):
+        super(StandaloneApplication, self).__init__()
 
-httpd = ThreadedHTTPServer((address, port), RequestHandler)
-logger.info(
-    "Listening for TCP requests to {} on port {}.".format(address, port))
-httpd.serve_forever()
+if __name__ == '__main__':
+    print("\nGDX Analytics as a Service\n===")
+    # Create a threaded PostgreSQL connection pool
+    try:
+        threaded_postgreSQL_pool = pool.ThreadedConnectionPool(
+            minconn=5,
+            maxconn=20,
+            user=user,
+            password=password,
+            host=host,
+            database=database)
+        if(threaded_postgreSQL_pool):
+            logger.info("Connection pool created successfully")
+    except (Exception, psycopg2.DatabaseError):
+        logger.exception("Error while connecting to PostgreSQL")
+    StandaloneApplication(wsgi_handler, {'bind': '{}:{}'format(address,port)}).run()
+
