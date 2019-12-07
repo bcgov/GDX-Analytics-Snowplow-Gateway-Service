@@ -14,6 +14,7 @@ import os
 # set up logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+logging.getLogger('BaseHTTPRequestHandler').setLevel(logging.DEBUG)
 
 # create console handler for logs at the DEBUG level
 # This will be emailed when the cron task runs; formatted to give messages only
