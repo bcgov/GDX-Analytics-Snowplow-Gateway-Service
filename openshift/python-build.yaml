@@ -28,9 +28,9 @@ objects:
     - annotations: null
       from:
         kind: DockerImage
-        name: registry.access.redhat.com/rhscl/python-36-rhel7:1-51
+        name: registry.access.redhat.com/rhscl/python-36-rhel7:1-59.1574935654
       importPolicy: {}
-      name: "3.6-1-51"
+      name: "3.6-1-59.1574935654"
       referencePolicy:
         type: Local
 - apiVersion: image.openshift.io/v1
@@ -74,7 +74,7 @@ objects:
       sourceStrategy:
         from:
           kind: ImageStreamTag
-          name: python:3.6-1-51
+          name: python:3.6-1-59.1574935654
       type: Source
     triggers:
     - imageChange: {}
