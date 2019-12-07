@@ -14,7 +14,6 @@ import os
 # set up logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-logging.getLogger('BaseHTTPRequestHandler').setLevel(logging.DEBUG)
 
 # create console handler for logs at the DEBUG level
 # This will be emailed when the cron task runs; formatted to give messages only
@@ -220,6 +219,11 @@ class RequestHandler(BaseHTTPRequestHandler):
 
     # Necessary for connection persistence (keepalive)
     protocol_version = 'HTTP/1.1'
+
+    # Don't log every single event
+    # https://stackoverflow.com/questions/3389305/how-to-silent-quiet-httpserver-and-basichttprequesthandlers-stderr-output
+    def log_message(self, format, *args):
+        return
 
     # suppress ConnectionResetErrors because we cannot identify the origin
     # https://chromium.googlesource.com/external/trace-viewer/+/bf55211014397cf0ebcd9e7090de1c4f84fc3ac0/third_party/Paste/paste/httpserver.py
