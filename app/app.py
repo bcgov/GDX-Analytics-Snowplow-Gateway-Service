@@ -220,24 +220,28 @@ class RequestHandler(BaseHTTPRequestHandler):
     # Necessary for connection persistence (keepalive)
     protocol_version = 'HTTP/1.1'
 
+    # suppress ConnectionResetErrors because we cannot identify the origin
     # https://chromium.googlesource.com/external/trace-viewer/+/bf55211014397cf0ebcd9e7090de1c4f84fc3ac0/third_party/Paste/paste/httpserver.py
     def handle(self):
         try:
             BaseHTTPRequestHandler.handle(self)
         except ConnectionResetError:
-            logger.exception("There was a ConnectionResetError: ")
+            # logger.exception("There was a ConnectionResetError: ")
             pass
 
-    # https://gist.github.com/mdonkers/63e115cc0c79b4f6b8b3a6b797e485c7
+    # a GET method is implemented for container health checks
     def do_GET(self):
         """Respond to a GET request."""
-        logger.info("GET request,\nPath: %s\nHeaders:\n%s\n",
-                    str(self.path), str(self.headers))
+        # suppress logging kube-probe (the kubernetes health check user-agent)
+        if 'kube-probe' not in self.headers['User-Agent']:
+            logger.info("GET request,\nPath: %s\nHeaders:\n%s\n",
+                        str(self.path), str(self.headers))
         self.send_response(200)
         self.send_header("Content-type", "text/html")
         self.end_headers()
         return
 
+    # a POST method handles the JSON requests intended for Snowplow
     def do_POST(self):
         logger.info("got POST request")
         ip_address = self.client_address[0]
