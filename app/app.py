@@ -337,5 +337,5 @@ if __name__ == '__main__':
             logger.info("Connection pool created successfully")
     except (Exception, psycopg2.DatabaseError):
         logger.exception("Error while connecting to PostgreSQL")
-    StandaloneApplication(wsgi_handler, {'bind': '{}:{}'format(address,port)}).run()
+    StandaloneApplication(wsgi_handler, {'bind': '{}:{}'.format(address,port)}).run()
 
