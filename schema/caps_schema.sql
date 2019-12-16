@@ -17,11 +17,11 @@ CREATE TABLE IF NOT EXISTS caps.client_calls (
     device_created_timestamp TIMESTAMP,
     event_data_json VARCHAR(4095)
 );
-ALTER TABLE caps.client_calls OWNER TO caps; 
+ALTER TABLE caps.client_calls OWNER TO caps;
 DROP TABLE IF EXISTS caps.snowplow_calls;
 CREATE TABLE IF NOT EXISTS caps.snowplow_calls (
     snowplow_send_id SERIAL PRIMARY KEY,
-    request_id INTEGER REFERENCES caps.client_calls(request_id),
+    request_id INTEGER REFERENCES caps.client_calls(request_id) ON DELETE CASCADE,
     sent_timestamp TIMESTAMP,
     snowplow_response INTEGER,
     try_number INTEGER,
@@ -31,4 +31,5 @@ CREATE TABLE IF NOT EXISTS caps.snowplow_calls (
     device_created_timestamp TIMESTAMP,
     event_data_json VARCHAR(4095)
 );
+CREATE index ON caps.snowplow_calls(request_id);
 ALTER TABLE caps.snowplow_calls OWNER TO caps;
