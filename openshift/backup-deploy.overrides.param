@@ -10,10 +10,11 @@ TAG_NAME=<tag>  # latest, or whatever was tagged in step #4
 # deployment backup details and strategy
 # database access
 DATABASE_SERVICE_NAME=caps-pgsql  # may need additional tagging per namespace
-POSTGRESQL_DATABASE=caps
+DATABASE_NAME=caps
 DATABASE_DEPLOYMENT_NAME=<database-secret-name>
 DATABASE_USER_KEY_NAME=<db-username-key>  # the database secret's username key
 DATABASE_PASSWORD_KEY_NAME=<db-password-key>  # the database secret's password key
+TABLE_SCHEMA=caps
 # database backup strategy settings
 # reference: https://github.com/BCDevOps/backup-container#backup-strategies
 BACKUP_STRATEGY=daily  # defaults to rolling if empty
@@ -26,6 +27,9 @@ BACKUP_PERIOD=1d  # only used by legacy mode
 # configuration and backup and verifcation volumes
 CONFIG_MAP_NAME=backup-conf  # the ConfigMap name (default: backup-conf)
 CONFIG_FILE_NAME=backup.conf  # as created in the ConfigMap (default: backup.conf)
+RETENTION_OFFSET='7 days'  # Deletes database records older than this (default: 7 days)
+RETENTION_MAP_NAME=retention-schedule  # the Retention Schedule map name (default: retention-schedule)
+RETENTION_FILE_NAME=retention_schedule.sh  # As created in the Retention Schedule Map (default: retention_schedule.sh)
 CONFIG_MOUNT_PATH=/
 BACKUP_VOLUME_NAME=<bk-projectname-nfsid>  # set this to the preconfigured nfs-backup volume id from step 1
 BACKUP_VOLUME_SIZE=1Gi

@@ -132,6 +132,19 @@
                     }
                   ]
                 }
+              },
+              {
+                "name": "${NAME}-retention-volume",
+                "configMap": {
+                  "name": "${RETENTION_MAP_NAME}",
+                  "items": [
+                    {
+                      "key": "${RETENTION_FILE_NAME}",
+                      "path": "${RETENTION_FILE_NAME}"
+                    }
+                  ],
+                  "defaultMode": 493
+                }
               }
             ],
             "containers": [
@@ -167,6 +180,10 @@
                   {
                     "name": "BACKUP_PERIOD",
                     "value": "${BACKUP_PERIOD}"
+                  },
+                  {
+                    "name": "RETENTION_OFFSET",
+                    "value": "${RETENTION_OFFSET}"
                   },
                   {
                     "name": "DATABASE_SERVICE_NAME",
@@ -256,6 +273,11 @@
                     "name": "${NAME}-config-volume",
                     "mountPath": "${CONFIG_MOUNT_PATH}${CONFIG_FILE_NAME}",
                     "subPath": "${CONFIG_FILE_NAME}"
+                  },
+                  {
+                    "name": "${NAME}-retention-volume",
+                    "mountPath": "${CONFIG_MOUNT_PATH}${RETENTION_FILE_NAME}",
+                    "subPath": "${RETENTION_FILE_NAME}"
                   }
                 ]
               }
@@ -435,6 +457,13 @@
       "value": "1d"
     },
     {
+      "name": "RETENTION_OFFSET",
+      "displayName": "The Postgres Interval value to delete records earlier than",
+      "description": "Records older than this value may be deleted from the database if the nightly cron is set",
+      "required": false,
+      "value": "7 days"
+    },
+    {
       "name": "CONFIG_FILE_NAME",
       "displayName": "Config File Name",
       "description": "The name of the configuration file.",
@@ -531,6 +560,20 @@
       "description": "The resources Memory limit (in Mi, Gi, etc) for this build.",
       "required": true,
       "value": "0Mi"
+    },
+    {
+      "name": "RETENTION_FILE_NAME",
+      "displayName": "Retention Schedule Script File Name",
+      "description": "The name of the retention schedule script.",
+      "required": true,
+      "value": "retention_schedule.sh"
+    },
+    {
+      "name": "RETENTION_MAP_NAME",
+      "displayName": "Retention Map Name",
+      "description": "The name of the retention schedule script map.",
+      "required": true,
+      "value": "retention-schedule"
     }
   ]
 }
