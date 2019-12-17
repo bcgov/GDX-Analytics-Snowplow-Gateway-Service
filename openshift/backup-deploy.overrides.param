@@ -10,10 +10,11 @@ TAG_NAME=<tag>  # latest, or whatever was tagged in step #4
 # deployment backup details and strategy
 # database access
 DATABASE_SERVICE_NAME=caps-pgsql  # may need additional tagging per namespace
-POSTGRESQL_DATABASE=caps
+DATABASE_NAME=caps
 DATABASE_DEPLOYMENT_NAME=<database-secret-name>
 DATABASE_USER_KEY_NAME=<db-username-key>  # the database secret's username key
 DATABASE_PASSWORD_KEY_NAME=<db-password-key>  # the database secret's password key
+TABLE_SCHEMA=caps
 # database backup strategy settings
 # reference: https://github.com/BCDevOps/backup-container#backup-strategies
 BACKUP_STRATEGY=daily  # defaults to rolling if empty

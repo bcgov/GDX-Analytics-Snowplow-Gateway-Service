@@ -142,7 +142,8 @@
                       "key": "${RETENTION_FILE_NAME}",
                       "path": "${RETENTION_FILE_NAME}"
                     }
-                  ]
+                  ],
+                  "defaultMode": 493
                 }
               }
             ],
