@@ -107,15 +107,22 @@ def single_response_query(sql, execute_tuple, all=False):
 
 def call_snowplow(request_id, json_object):
 
+    # Debugging request_id to see if it's being evaluated by the callbacks
+    log.debug("Request ID on call_snowplow function: {}".format(request_id))
+
     # Use the global emitter and tracker dicts
     global e
     global t
+
+    def callback_log_inscope():
+        log.debug("callback_log_inscope has Request ID: {}".format(request_id))
 
     # callbacks are documented in
     # - https://github.com/snowplow/snowplow/wiki/Python-Tracker#emitters
 
     # callback for passed calls
     def on_success(successfully_sent_count):
+        callback_log_inscope()
         logger.info(
             "Emitter call PASSED on request_id: {}.".format(request_id))
         # get previous try number, choose larger of 0 or query result and add 1
