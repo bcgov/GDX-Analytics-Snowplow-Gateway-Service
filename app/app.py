@@ -1,15 +1,16 @@
-from snowplow_tracker import Tracker, AsyncEmitter
-from snowplow_tracker import SelfDescribingJson
-from http.server import HTTPServer, BaseHTTPRequestHandler
-from socketserver import ThreadingMixIn
-import jsonschema
-import psycopg2
-from psycopg2 import pool
+'''CAPS Analytics as a Service on OpenShift'''
 import logging
 import signal
 import sys
 import json
 import os
+from socketserver import ThreadingMixIn
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from snowplow_tracker import Tracker, AsyncEmitter
+from snowplow_tracker import SelfDescribingJson
+import jsonschema
+import psycopg2
+from psycopg2 import pool
 
 # set up logging
 logger = logging.getLogger(__name__)
@@ -24,6 +25,7 @@ logger.addHandler(stream_handler)
 
 
 def signal_handler(signal, frame):
+    '''suppressing signal.signal signal_handler function with this override'''
     sys.exit(0)
 
 
@@ -82,21 +84,22 @@ post_schema = json.load(open('post_schema.json', 'r'))
 
 # Use getconn() method to Get Connection from connection pool
 # Returns the value of the generated identifier (index)
-def single_response_query(sql, execute_tuple, all=False):
+def single_response_query(sql, execute_tuple, fetch_all=False):
+    '''Run a query on the database an return a single falue response'''
     conn = None
     fetch = None
     try:
         conn = threaded_postgreSQL_pool.getconn()
-        if(conn):
+        if conn:
             cur = conn.cursor()
             cur.execute(sql, execute_tuple)
-            if all:
+            if fetch_all:
                 fetch = cur.fetchall()
             else:
                 fetch = cur.fetchone()
             conn.commit()
             cur.close()
-    except (Exception, psycopg2.DatabaseError):
+    except psycopg2.DatabaseError:
         logger.exception("Error retreiving from connection pool")
     finally:
         if conn is not None:
@@ -106,25 +109,27 @@ def single_response_query(sql, execute_tuple, all=False):
 
 
 def call_snowplow(request_id, json_object):
-
+    '''Callback executed when an emitter is flushed successfully'''
     # Debugging request_id to see if it's being evaluated by the callbacks
-    log.debug("Request ID on call_snowplow function: {}".format(request_id))
+    logger.info("Request ID on call_snowplow function: %s", request_id)
 
     # Use the global emitter and tracker dicts
     global e
     global t
 
     def callback_log_inscope():
-        log.debug("callback_log_inscope has Request ID: {}".format(request_id))
+        logger.info("callback_log_inscope has Request ID: %s", request_id)
 
     # callbacks are documented in
     # - https://github.com/snowplow/snowplow/wiki/Python-Tracker#emitters
 
     # callback for passed calls
     def on_success(successfully_sent_count):
+        logger.info('\'on_success\' callback with %s successful events',
+                    successfully_sent_count)
         callback_log_inscope()
         logger.info(
-            "Emitter call PASSED on request_id: {}.".format(request_id))
+            "Emitter call PASSED on request_id: %s.", request_id)
         # get previous try number, choose larger of 0 or query result and add 1
         max_try_number_query = (
             "SELECT MAX(try_number) "
@@ -133,7 +138,7 @@ def call_snowplow(request_id, json_object):
         try_number = max(
             i for i in [0, single_response_query(
                 max_try_number_query, (request_id, ))[0]] if i is not None) + 1
-        logger.debug("Try number: {}".format(try_number))
+        logger.debug("Try number: %s", try_number)
         snowplow_tuple = (
             str(request_id),
             str(200),
@@ -145,28 +150,29 @@ def call_snowplow(request_id, json_object):
             json.dumps(json_object['event_data_json']))
         snowplow_id = single_response_query(
             snowplow_calls_sql, snowplow_tuple)[0]
-        logger.info(
-            "snowplow call table insertion PASSED "
-            "on request_id: {} and snowplow_id: {}.".format(
-                request_id, snowplow_id))
-        return
+        logger.info("snowplow call table insertion PASSED on "
+                    "request_id: %s and snowplow_id: %s.",
+                    request_id, snowplow_id)
 
     # callback for failed calls
     failed_try = 0
 
     def on_failure(successfully_sent_count, failed_events):
+        '''Callback executed when an emitter flush results in any failures'''
         # increment the failed try
+        logger.warning('\'on_failure\' callback with %s failed events',
+                       successfully_sent_count)
         nonlocal failed_try
         failed_try += 1
 
         logger.info(
-            "Emitter call FAILED on "
-            "request_id {} on try {}. No re-attempt will be made.".format(
-                request_id, failed_try))
+            "Emitter call FAILED on request_id %s on try %s. "
+            "No re-attempt will be made.", request_id, failed_try)
 
         # failed_events should always contain only one event,
         # because ASyncEmitter has a buffer size of 1
         for event in failed_events:
+            logger.warning('event failure: %s', event)
             snowplow_tuple = (
                 str(request_id), str(400), str(failed_try),
                 json_object['env'], json_object['namespace'],
@@ -174,19 +180,17 @@ def call_snowplow(request_id, json_object):
                 json.dumps(json_object['event_data_json']))
             snowplow_id = single_response_query(
                 snowplow_calls_sql, snowplow_tuple)[0]
-            logger.info(("snowplow call table insertion PASSED on request_id: "
-                         "{} and snowplow_id: {}.".format(
-                             request_id, snowplow_id)))
+            logger.info("snowplow call table insertion PASSED on request_id: "
+                        "%s and snowplow_id: %s.", request_id, snowplow_id)
             # Re-attempt the event call by inputting it back to the emitter
 
     tracker_identifier = "{}-{}-{}".format(
         json_object['env'], json_object['namespace'], json_object['app_id'])
-    logger.debug("New request with tracker_identifier {}".format(
-        tracker_identifier))
+    logger.debug("New request with tracker_identifier %s", tracker_identifier)
 
     # logic to switch between SPM and Production Snowplow.
     sp_route = os.getenv("SP_ENDPOINT_{}".format(json_object['env'].upper()))
-    logger.debug("Using Snowplow Endpoint {}".format(sp_route))
+    logger.debug("Using Snowplow Endpoint %s", sp_route)
 
     # Set up the emitter and tracker. If there is already one for this
     # combination of env, namespace, and app-id, reuse it
@@ -223,11 +227,12 @@ def call_snowplow(request_id, json_object):
 
 
 class RequestHandler(BaseHTTPRequestHandler):
+    '''This is the Request Handler running on the multithreaded HTTPServer'''
 
     # Necessary for connection persistence (keepalive)
     protocol_version = 'HTTP/1.1'
 
-    # Don't log every single event
+    # Suppress the stderr log output from BaseHTTPRequestHandler
     # https://stackoverflow.com/questions/3389305/how-to-silent-quiet-httpserver-and-basichttprequesthandlers-stderr-output
     def log_message(self, format, *args):
         return
@@ -243,7 +248,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 
     # a GET method is implemented for container health checks
     def do_GET(self):
-        """Respond to a GET request."""
+        '''Respond to a GET request. Use GET for liveness checks or testing.'''
         # suppress logging kube-probe (the kubernetes health check user-agent)
         if 'kube-probe' not in self.headers['User-Agent']:
             logger.info("GET request,\nPath: %s\nHeaders:\n%s\n",
@@ -251,18 +256,18 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-type", "text/html")
         self.end_headers()
-        return
 
     # a POST method handles the JSON requests intended for Snowplow
     def do_POST(self):
+        '''Respond to a POST request. Clients use POST to deliver events.'''
         logger.info("got POST request")
         ip_address = self.client_address[0]
         # headers = self.headers
         length = int(self.headers['Content-Length'])
         post_data = self.rfile.read(length).decode('utf-8')
 
-        logger.info("IP: {}".format(ip_address))
-        logger.info("HEADERS: {}".format(self.headers))
+        logger.info("IP: %s", ip_address)
+        logger.info("HEADERS: %s", self.headers)
 
         # Test that the post_data is JSON
         try:
@@ -336,15 +341,16 @@ class RequestHandler(BaseHTTPRequestHandler):
                       json.dumps(json_object['event_data_json']))
         request_id = single_response_query(client_calls_sql, post_tuple)[0]
 
-        logger.info("Issue Snowplow call: Request ID {}.".format(request_id))
+        logger.info("Issue Snowplow call: Request ID %s.", request_id)
         call_snowplow(request_id, json_object)
-        return
 
 
 # ThreadedHTTPServer reference:
 # - https://pymotw.com/2/BaseHTTPServer/index.html#module-BaseHTTPServer
 # - https://stackoverflow.com/a/36439055/5431461
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    '''This allows us to use a multithreaded HTTPServer'''
+
     def server_activate(self):
         self.socket.listen(20)
 
@@ -360,12 +366,11 @@ try:
         password=password,
         host=host,
         database=database)
-    if(threaded_postgreSQL_pool):
+    if threaded_postgreSQL_pool:
         logger.info("Connection pool created successfully")
-except (Exception, psycopg2.DatabaseError):
+except psycopg2.DatabaseError:
     logger.exception("Error while connecting to PostgreSQL")
 
 httpd = ThreadedHTTPServer((address, port), RequestHandler)
-logger.info(
-    "Listening for TCP requests to {} on port {}.".format(address, port))
+logger.info("Listening for TCP requests to %s on port %s.", address, port)
 httpd.serve_forever()
