@@ -160,14 +160,15 @@ def call_snowplow(request_id, json_object):
     def on_failure(successfully_sent_count, failed_events):
         '''Callback executed when an emitter flush results in any failures'''
         # increment the failed try
-        logger.warning('\'on_failure\' callback with %s failed events',
-                       successfully_sent_count)
+        logger.warning('\'on_failure\' callback: %s events successfully '
+                       'emitted, %s events returned by emitter with an error '
+                       'response', successfully_sent_count, len(failed_events))
         nonlocal failed_try
         failed_try += 1
 
         logger.info(
-            "Emitter call FAILED on request_id %s on try %s. "
-            "No re-attempt will be made.", request_id, failed_try)
+            'Emitter call FAILED on request_id %s on try %s. '
+            'No re-attempt will be made.', request_id, failed_try)
 
         # failed_events should always contain only one event,
         # because ASyncEmitter has a buffer size of 1
@@ -195,19 +196,29 @@ def call_snowplow(request_id, json_object):
     # Set up the emitter and tracker. If there is already one for this
     # combination of env, namespace, and app-id, reuse it
     # TODO: add error checking
-    if tracker_identifier not in e:
-        e[tracker_identifier] = AsyncEmitter(
-            sp_route,
-            protocol="https",
-            on_success=on_success,
-            on_failure=on_failure)
+    # TEMPORARILY COMMENTED OUT TO AVOID USING THE GLOBAL DICT OF EMITTERS/TRACKERS
+    # if tracker_identifier not in e:
+    #     e[tracker_identifier] = AsyncEmitter(
+    #         sp_route,
+    #         protocol="https",
+    #         on_success=on_success,
+    #         on_failure=on_failure)
+    #
+    # if tracker_identifier not in t:
+    #     t[tracker_identifier] = Tracker(
+    #         e[tracker_identifier],
+    #         encode_base64=False,
+    #         app_id=json_object['app_id'],
+    #         namespace=json_object['namespace'])
 
-    if tracker_identifier not in t:
-        t[tracker_identifier] = Tracker(
-            e[tracker_identifier],
-            encode_base64=False,
-            app_id=json_object['app_id'],
-            namespace=json_object['namespace'])
+    this_ASyncEmitter = AsyncEmitter(sp_route,
+                                     protocol="https",
+                                     on_success=on_success,
+                                     on_failure=on_failure)
+    this_Tracker = Tracker(this_ASyncEmitter,
+                           encode_base64=False,
+                           app_id=json_object['app_id'],
+                           namespace=json_object['namespace'])
 
     # Build event JSON
     # TODO: add error checking
@@ -222,8 +233,13 @@ def call_snowplow(request_id, json_object):
 
     # Send call to Snowplow
     # TODO: add error checking
-    t[tracker_identifier].track_self_describing_event(
-        event, contexts, tstamp=json_object['dvce_created_tstamp'])
+    # TEMPORARILY COMMENTED OUT TO AVOID USING THE GLOBAL DICT OF EMITTERS/TRACKERS
+    # t[tracker_identifier].track_self_describing_event(
+    #     event, contexts, tstamp=json_object['dvce_created_tstamp'])
+
+    this_Tracker.track_self_describing_event(
+        event, contexts, tstamp=json_object['dvce_created_tstamp']
+    )
 
 
 class RequestHandler(BaseHTTPRequestHandler):
@@ -341,8 +357,12 @@ class RequestHandler(BaseHTTPRequestHandler):
                       json.dumps(json_object['event_data_json']))
         request_id = single_response_query(client_calls_sql, post_tuple)[0]
 
+        # Explicitly finishes this request. Resolves cURL hangs while testing.
+        # self.finish()
+
         logger.info("Issue Snowplow call: Request ID %s.", request_id)
         call_snowplow(request_id, json_object)
+        return
 
 
 # ThreadedHTTPServer reference:
@@ -361,7 +381,7 @@ print("\nGDX Analytics as a Service\n===")
 try:
     threaded_postgreSQL_pool = pool.ThreadedConnectionPool(
         minconn=5,
-        maxconn=20,
+        maxconn=100,
         user=user,
         password=password,
         host=host,
