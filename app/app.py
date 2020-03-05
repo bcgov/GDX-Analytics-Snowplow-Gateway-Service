@@ -370,9 +370,9 @@ class RequestHandler(BaseHTTPRequestHandler):
 # - https://stackoverflow.com/a/36439055/5431461
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     '''This allows us to use a multithreaded HTTPServer'''
-
-    def server_activate(self):
-        self.socket.listen(20)
+    # 
+    # def server_activate(self):
+    #     self.socket.listen(128)
 
 
 print("\nGDX Analytics as a Service\n===")
