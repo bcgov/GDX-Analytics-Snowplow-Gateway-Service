@@ -5,6 +5,15 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Python: app File",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/app/app.py",
+      "envFile": "${workspaceFolder}/.vscode/.env",
+      "cwd": "${workspaceFolder}/app",
+      "console": "internalConsole"
+    },
+    {
       "type": "node",
       "request": "launch",
       "name": "Deploy Local",
