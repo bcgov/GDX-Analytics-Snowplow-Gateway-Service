@@ -7,6 +7,13 @@ parameters:
 - name: VERSION
 - name: HOST
 objects:
+- apiVersion: v1
+  data:
+    tls.crt: ''
+    tls.key: ''
+  kind: ConfigMap
+  metadata:
+    name: caps
 - apiVersion: image.openshift.io/v1
   kind: ImageStream
   metadata:
@@ -91,7 +98,7 @@ objects:
                   key: SP_ENDPOINT_PROD
                   name: snowplow-endpoints
             - name: SERVING_CERT_PATH
-              value: /etc/x509/https
+              value: /mnt/ssl
           name: app
           imagePullPolicy: Always
           livenessProbe:
@@ -99,7 +106,7 @@ objects:
             httpGet:
               path: /
               port: 8443
-              scheme: HTTP
+              scheme: HTTPS
             initialDelaySeconds: 30
             periodSeconds: 10
             successThreshold: 1
@@ -112,7 +119,7 @@ objects:
             httpGet:
               path: /
               port: 8443
-              scheme: HTTP
+              scheme: HTTPS
             initialDelaySeconds: 10
             periodSeconds: 10
             successThreshold: 1
@@ -125,13 +132,14 @@ objects:
               cpu: 200m
               memory: 1024Mi
           volumeMounts:
-          - mountPath: /etc/x509/https
-            name: app-x509-https-volume
+          - mountPath: /mnt/ssl
+            name: ssl-volume
             readOnly: true
         volumes:
-        - name: app-x509-https-volume
-          secret:
-            secretName: ${NAME}-x509-https-secret${SUFFIX}
+        - configMap:
+            defaultMode: 420
+            name: caps
+          name: ssl-volume
     test: false
     triggers:
     - type: ConfigChange
@@ -197,8 +205,8 @@ objects:
     port:
       targetPort: 8443-tcp
     tls:
-      insecureEdgeTerminationPolicy: None
-      termination: edge
+      insecureEdgeTerminationPolicy: Redirect
+      termination: passthrough
     to:
       kind: Service
       name: ${NAME}${SUFFIX}
