@@ -7,13 +7,6 @@ parameters:
 - name: VERSION
 - name: HOST
 objects:
-- apiVersion: v1
-  data:
-    tls.crt: ''
-    tls.key: ''
-  kind: ConfigMap
-  metadata:
-    name: caps
 - apiVersion: image.openshift.io/v1
   kind: ImageStream
   metadata:
