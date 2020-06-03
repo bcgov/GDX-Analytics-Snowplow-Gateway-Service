@@ -142,7 +142,7 @@ This project is in production and the GDX Analytics Team will continue to update
  
 ### [GDX-Analytics/](https://github.com/bcgov/GDX-Analytics)
  
-<< Include the current description of the GDX-Analytics Main repository >>
+This is the central repository for work by the GDX Analytics Team.
  
 ## Getting Help or Reporting an Issue
  
