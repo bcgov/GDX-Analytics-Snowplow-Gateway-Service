@@ -91,8 +91,20 @@ def single_response_query(sql, execute_tuple, fetch_all=False):
     try:
         conn = threaded_postgreSQL_pool.getconn()
         if conn:
-            cur = conn.cursor()
-            cur.execute(sql, execute_tuple)
+            while True:
+                try:
+                    cur = conn.cursor()
+                    cur.execute(sql, execute_tuple)
+                # An OperationalError suggests that the connection broke.
+                # In those instances, we will re-create a single connection.
+                except psycopg2.OperationalError:
+                    logger.exception("OperationalError. Recreating connection")
+                    conn = psycopg2.connect(user=user,
+                                            password=password,
+                                            host=host,
+                                            database=database)
+                else:
+                    break
             if fetch_all:
                 fetch = cur.fetchall()
             else:
