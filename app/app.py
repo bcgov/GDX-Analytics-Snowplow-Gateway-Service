@@ -98,11 +98,11 @@ def single_response_query(sql, execute_tuple, fetch_all=False):
                 # An OperationalError suggests that the connection broke.
                 # In those instances, we will re-create a single connection.
                 except psycopg2.OperationalError:
-                    logger.exception("OperationalError. Recreating connection")
-                    conn = psycopg2.connect(user=user,
-                                            password=password,
-                                            host=host,
-                                            database=database)
+                    logger.exception("OperationalError. Return this "
+                        "connection to the pool as a closed connection, "
+                        "and get a new one.")
+                    threaded_postgreSQL_pool.putconn(conn, close=True)
+                    conn = threaded_postgreSQL_pool.getconn()
                 else:
                     break
             if fetch_all:
@@ -382,7 +382,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 # - https://stackoverflow.com/a/36439055/5431461
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     '''This allows us to use a multithreaded HTTPServer'''
-    # 
+    #
     # def server_activate(self):
     #     self.socket.listen(128)
 
