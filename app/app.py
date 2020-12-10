@@ -257,6 +257,8 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-type", "text/html")
         self.end_headers()
+        self.finish()
+        self.connection.close()
 
     # a POST method handles the JSON requests intended for Snowplow
     def do_POST(self):
@@ -347,7 +349,9 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         logger.info("Issue Snowplow call: Request ID %s.", request_id)
         call_snowplow(request_id, json_object)
-        return
+
+        self.finish()
+        self.connection.close()
 
 
 # ThreadedHTTPServer reference:
