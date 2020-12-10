@@ -157,6 +157,7 @@ def call_snowplow(request_id, json_object):
         logger.info("snowplow call table insertion PASSED on "
                     "request_id: %s and snowplow_id: %s.",
                     request_id, snowplow_id)
+        return
 
     # callback for failed calls
     failed_try = 0
@@ -188,6 +189,7 @@ def call_snowplow(request_id, json_object):
             logger.info("snowplow call table insertion PASSED on request_id: "
                         "%s and snowplow_id: %s.", request_id, snowplow_id)
             # Re-attempt the event call by inputting it back to the emitter
+        return
 
     tracker_identifier = "{}-{}-{}".format(
         json_object['env'], json_object['namespace'], json_object['app_id'])
@@ -225,6 +227,7 @@ def call_snowplow(request_id, json_object):
     this_Tracker.track_self_describing_event(
         event, contexts, tstamp=json_object['dvce_created_tstamp']
     )
+    return
 
 
 class RequestHandler(BaseHTTPRequestHandler):
@@ -257,8 +260,6 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-type", "text/html")
         self.end_headers()
-        self.finish()
-        self.connection.close()
 
     # a POST method handles the JSON requests intended for Snowplow
     def do_POST(self):
@@ -349,9 +350,6 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         logger.info("Issue Snowplow call: Request ID %s.", request_id)
         call_snowplow(request_id, json_object)
-
-        self.finish()
-        self.connection.close()
 
 
 # ThreadedHTTPServer reference:
