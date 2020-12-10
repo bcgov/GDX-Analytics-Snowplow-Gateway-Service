@@ -41,10 +41,6 @@ password = os.getenv('DB_PASSWORD')
 address = '0.0.0.0'
 port = 8443
 
-# set up dicts to track emitters and trackers
-e = {}
-t = {}
-
 # Database Query Strings
 # Timestamps are in ms and their calculation for insertion as a datetime is
 # handled by postgres, which natively regards datetimes as being in seconds.
@@ -125,10 +121,6 @@ def call_snowplow(request_id, json_object):
     # Debugging request_id to see if it's being evaluated by the callbacks
     logger.info("Request ID on call_snowplow function: %s", request_id)
 
-    # Use the global emitter and tracker dicts
-    global e
-    global t
-
     def callback_log_inscope():
         logger.info("callback_log_inscope has Request ID: %s", request_id)
 
@@ -165,6 +157,7 @@ def call_snowplow(request_id, json_object):
         logger.info("snowplow call table insertion PASSED on "
                     "request_id: %s and snowplow_id: %s.",
                     request_id, snowplow_id)
+        return
 
     # callback for failed calls
     failed_try = 0
@@ -196,6 +189,7 @@ def call_snowplow(request_id, json_object):
             logger.info("snowplow call table insertion PASSED on request_id: "
                         "%s and snowplow_id: %s.", request_id, snowplow_id)
             # Re-attempt the event call by inputting it back to the emitter
+        return
 
     tracker_identifier = "{}-{}-{}".format(
         json_object['env'], json_object['namespace'], json_object['app_id'])
@@ -205,23 +199,7 @@ def call_snowplow(request_id, json_object):
     sp_route = os.getenv("SP_ENDPOINT_{}".format(json_object['env'].upper()))
     logger.debug("Using Snowplow Endpoint %s", sp_route)
 
-    # Set up the emitter and tracker. If there is already one for this
-    # combination of env, namespace, and app-id, reuse it
-    # TODO: add error checking
-    # TEMPORARILY COMMENTED OUT TO AVOID USING THE GLOBAL DICT OF EMITTERS/TRACKERS
-    # if tracker_identifier not in e:
-    #     e[tracker_identifier] = AsyncEmitter(
-    #         sp_route,
-    #         protocol="https",
-    #         on_success=on_success,
-    #         on_failure=on_failure)
-    #
-    # if tracker_identifier not in t:
-    #     t[tracker_identifier] = Tracker(
-    #         e[tracker_identifier],
-    #         encode_base64=False,
-    #         app_id=json_object['app_id'],
-    #         namespace=json_object['namespace'])
+    # Set up the emitter and tracker.
 
     this_ASyncEmitter = AsyncEmitter(sp_route,
                                      protocol="https",
@@ -245,13 +223,11 @@ def call_snowplow(request_id, json_object):
 
     # Send call to Snowplow
     # TODO: add error checking
-    # TEMPORARILY COMMENTED OUT TO AVOID USING THE GLOBAL DICT OF EMITTERS/TRACKERS
-    # t[tracker_identifier].track_self_describing_event(
-    #     event, contexts, tstamp=json_object['dvce_created_tstamp'])
 
     this_Tracker.track_self_describing_event(
         event, contexts, tstamp=json_object['dvce_created_tstamp']
     )
+    return
 
 
 class RequestHandler(BaseHTTPRequestHandler):
@@ -374,7 +350,6 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         logger.info("Issue Snowplow call: Request ID %s.", request_id)
         call_snowplow(request_id, json_object)
-        return
 
 
 # ThreadedHTTPServer reference:
