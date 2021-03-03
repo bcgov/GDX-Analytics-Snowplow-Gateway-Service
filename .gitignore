@@ -9,3 +9,5 @@ app/venv*
 
 # tls artifacts
 app/tls.*
+.vscode/settings.json
+.vscode/.env
