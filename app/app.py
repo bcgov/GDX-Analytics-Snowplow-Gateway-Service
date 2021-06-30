@@ -99,7 +99,7 @@ def single_response_query(sql, execute_tuple, fetch_all=False):
                 # In those instances, we will re-create a single connection.
                 except psycopg2.OperationalError:
                     logger.exception("OperationalError. Return this "
-                                     "connection to the pool"
+                                     "connection to the pool "
                                      "as a closed connection, "
                                      "and get a new one.")
                     threaded_postgreSQL_pool.putconn(conn, close=True)
